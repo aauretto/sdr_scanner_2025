@@ -10,8 +10,6 @@ from threading import Thread
 # scaling_factor = Fs / (2 * np.pi * deviation_hz)
 # normalized = phase_diff * scaling_factor
 
-
-
 class DecodeFM(AbstractWorker):
     def process(self, data):
         """
@@ -44,47 +42,8 @@ class ProvideRawRF(BasePipelineStage):
             await self.outbox.put(chunk)
         await self.outbox.put(None)
 
-class RechunkArray(BasePipelineStage):
-    def __init__(self, tarBlockSize):
-        super().__init__()
-        self.tarBlockSize = tarBlockSize
-        self.partial = np.full(shape = (tarBlockSize,), fill_value=0.0, dtype=np.float32)
-        self.partialLen = 0
-        self.isRunning = True
-
-    async def execute(self):
-        while self.isRunning:
-            await self.consume_blocksz_samples()
-
-    async def consume_blocksz_samples(self):
-        data = await self.prevStage.get_result()
-        dataPos = 0
-        if data is None:
-            await self.outbox.put(None)
-            self.isRunning = False
-            return
-            
-        while dataPos < len(data): # More data available from last time we got data
-
-            # Move samples into buffer
-            amtToMove = min(self.tarBlockSize - self.partialLen, len(data) - dataPos)
-            self.partial[self.partialLen:self.partialLen + amtToMove] = data[dataPos: dataPos + amtToMove]                
-            self.partialLen += amtToMove
-            dataPos += amtToMove
-            
-            # Send when we have enough
-            if self.partialLen == self.tarBlockSize:
-                await self.outbox.put(self.partial.copy())
-                self.partialLen = 0
-
-class ReshapeArray(AbstractWorker):
-    def __init__(self, newShape):
-        super().__init__()
-        self.newShape = newShape
-    def process(self, data): 
-        return data.reshape(*self.newShape)
-
 def __testing():
+    from AudioPipeStages import RechunkArray, ReshapeArray
     from rtlsdr import RtlSdr
     from SpeakerManager import SpeakerManager
     sdr = RtlSdr()
