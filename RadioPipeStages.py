@@ -44,8 +44,49 @@ class ProvideRawRF(BasePipelineStage):
             await self.outbox.put(chunk)
         await self.outbox.put(None)
 
+class RechunkArray(BasePipelineStage):
+    def __init__(self, tarBlockSize):
+        super().__init__()
+        self.tarBlockSize = tarBlockSize
+        self.partial = np.full(shape = (tarBlockSize,), fill_value=0.0, dtype=np.float32)
+        self.partialLen = 0
+        self.isRunning = True
+
+    async def execute(self):
+        while self.isRunning:
+            await self.consume_blocksz_samples()
+
+    async def consume_blocksz_samples(self):
+        data = await self.prevStage.get_result()
+        dataPos = 0
+        if data is None:
+            await self.outbox.put(None)
+            self.isRunning = False
+            return
+            
+        while dataPos < len(data): # More data available from last time we got data
+
+            # Move samples into buffer
+            amtToMove = min(self.tarBlockSize - self.partialLen, len(data) - dataPos)
+            self.partial[self.partialLen:self.partialLen + amtToMove] = data[dataPos: dataPos + amtToMove]                
+            self.partialLen += amtToMove
+            dataPos += amtToMove
+            
+            # Send when we have enough
+            if self.partialLen == self.tarBlockSize:
+                await self.outbox.put(self.partial.copy())
+                self.partialLen = 0
+
+class ReshapeArray(AbstractWorker):
+    def __init__(self, newShape):
+        super().__init__()
+        self.newShape = newShape
+    def process(self, data): 
+        return data.reshape(*self.newShape)
+
 def __testing():
     from rtlsdr import RtlSdr
+    from SpeakerManager import SpeakerManager
     sdr = RtlSdr()
 
     # Configure SDR
@@ -54,12 +95,8 @@ def __testing():
     sdr.freq_correction = 60   # PPM
     sdr.gain = 'auto'
 
-    class GenerateLists(BasePipelineStage):
-        async def execute(self):
-            sz = 5
-            for i in range(0, 5):
-                await self.outbox.put([i]*sz)
-            await self.outbox.put(None)
+    audioFS = 44100
+    audioBlockSize = 2**12
 
     q = Queue()
 
@@ -72,23 +109,23 @@ def __testing():
         pipeline = AsyncPipeline(
             [ProvideRawRF(sdr, 2**18), # Make this an sdrSpec class or smth
              DecodeFM(),
-             Downsample(0.25e6, 44100),
+             Downsample(0.25e6, audioFS),
+             RechunkArray(audioBlockSize),
+             ReshapeArray((-1,1)),
              SynchWindow(q), 
              Endpoint()]) 
         pipeline.run_pipeline()
         
         loop.close()
-    t = Thread(target=worker, args = (q, sdr))
-    t.start()
-    
-    # Retreive the data at the end of the pipeline
-    while True:
-        item = q.get()
-        if item is None:
-            break
-        print(f"[Outside pipeline] > {type(item[0])}")
+    rx = Thread(target=worker, args = (q, sdr))
 
-    t.join()
+    sm = SpeakerManager(blockSize=audioBlockSize, sampRate=audioFS)
+    sm.set_source(q)
+    sm.init_stream()
+    sm.start()
+
+    rx.start()
+    rx.join()
 
 if __name__ == "__main__":
     __testing()

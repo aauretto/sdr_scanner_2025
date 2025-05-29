@@ -4,13 +4,14 @@ Async pipeline blocks that can be chained together and run
 """
 import asyncio
 from abc import ABC, abstractmethod
-
 class AsyncPipeline():
     """
-    Basic single-source pipeline that consists of (somewhat restrictively) a
-    source and any number of stages.
-    Source must be an object that provides a .generate() coroutine
-    Stages must be a list of objects that inherit from BasePipelineStage
+    Basic single-source pipeline that consists of number of stages arranged in
+    a linear fashion.
+    All stages must inherit from BasePipelineStage
+
+    Notes:
+    - Pipeline must be initialized and run in the same thread
     """
     def __init__(self, stages = []):
         self.stages = stages
@@ -34,8 +35,11 @@ class AsyncPipeline():
 
         self.loop.run_until_complete(asyncio.gather(*tasks))
 
-
 class BasePipelineStage(ABC):
+    """
+    Universal base class for all steps in pipeline. Override execute to determine
+    behavior for a given stage.
+    """
     def __init__(self, prevStage = None):
         self.prevStage = self.register_prev_stage(prevStage)
         self.outbox = asyncio.Queue()
@@ -50,9 +54,10 @@ class BasePipelineStage(ABC):
     async def execute(self):
         pass
 
-class TransformStage(BasePipelineStage):
+class AbstractWorker(BasePipelineStage):
     """
-    Inheritable class that has a single predecessor in the pipeline
+    Inheritable class that has a single predecessor in the pipeline. Ideal for
+    steps that transform or modify the data in some way.
     """
     async def execute(self):
         while True:
@@ -60,22 +65,64 @@ class TransformStage(BasePipelineStage):
             if data is None:
                 await self.outbox.put(None)
                 break
-            await self.outbox.put(self.transform(data))
+            await self.outbox.put(self.process(data))
 
     @abstractmethod
-    def transform(self, data):
+    def process(self, data):
+        """
+        How to process / transform the data
+        """
         pass
 
-def main():
+class SynchWindow(BasePipelineStage):
+    """
+    Window stage that will allow synchronous code to provide a queue that fills
+    up with the data as it exists at the current point in the pipeline.
+    """
+    def __init__(self, queue):
+        super().__init__()
+        self.synchOutbox = queue
+    
+    async def execute(self):
+        while True:
+            data = await self.prevStage.get_result()
+            self.synchOutbox.put(data)
+            if data is None:
+                await self.outbox.put(None)
+                break
+            await self.outbox.put(data)
+
+class Endpoint(BasePipelineStage):
+    """
+    Endpoint that does not add anything to an outbox (prevents last outbox 
+    from becoming massive for long running lines)
+    
+    Note:
+    Technically still has an outbox and will put None there when it is done.
+    """
+    async def execute(self):
+        while True:
+            data = await self.prevStage.get_result()
+            self.process(data)
+            if data is None:
+                await self.outbox.put(None)
+                break
+
+    def process(self, data):
+        pass
+
+
+def __testing():
     """
     Basic testing and verification
     """
-    class Times2(TransformStage):
-        def transform(self, data):
+
+    class Times2(AbstractWorker):
+        def process(self, data):
             return 2 * data
 
-    class PrintStage(TransformStage):
-        def transform(self, data):
+    class PrintStage(AbstractWorker):
+        def process(self, data):
             print(f"[Print From Pipeline] > {data}")
             return data
 
@@ -85,8 +132,8 @@ def main():
                 await self.outbox.put(x)
             await self.outbox.put(None)
 
-    pipeline = AsyncPipeline([GenerateInts(), Times2(),Times2(),Times2(), PrintStage()])
+    pipeline = AsyncPipeline([GenerateInts(), Times2(),Times2(),Times2(), PrintStage(), Endpoint()])
     pipeline.run_pipeline()
 
 if __name__ == "__main__":
-    main()
+    __testing()
