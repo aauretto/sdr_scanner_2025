@@ -1,5 +1,5 @@
-from AsyncPipeline import AsyncPipeline, BasePipelineStage, AbstractWorker, SynchWindow, Endpoint
-
+from sdr_scanner_2025.async_pipeline import AsyncPipeline, BasePipelineStage, AbstractWorker, SynchWindow, Endpoint
+import numpy as np
 
 class RechunkArray(BasePipelineStage):
     def __init__(self, tarBlockSize):

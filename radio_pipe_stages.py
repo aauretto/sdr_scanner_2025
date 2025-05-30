@@ -1,9 +1,6 @@
 import asyncio
-
-from AsyncPipeline import AsyncPipeline, BasePipelineStage, AbstractWorker, SynchWindow, Endpoint
+from sdr_scanner_2025.async_pipeline import AsyncPipeline, BasePipelineStage, AbstractWorker, SynchWindow, Endpoint
 import numpy as np
-from queue import Queue
-from threading import Thread
 
 # Scale factor to do for FM audio since we drift 75kHz in each dir
 # deviation_hz = 75000
@@ -30,6 +27,18 @@ class Downsample(AbstractWorker):
 
     def process(self, data):
         return resample(data, int(len(data) * self.toRate / self.fromRate))
+    
+from scipy.signal import lfilter, butter
+class LowPassFilter(AbstractWorker):
+    """
+    Lowpass filter to isolate band of interest
+    """
+    def __init__(self, cutoff, fs, order=5):
+        super().__init__()
+        self.b, self.a = butter(order, cutoff / (0.5 * fs), btype='low', analog=False)
+
+    def process(self, data):
+        return lfilter(self.b, self.a, data)
         
 class ProvideRawRF(BasePipelineStage):
     def __init__(self, sdr, spb):
@@ -43,9 +52,11 @@ class ProvideRawRF(BasePipelineStage):
         await self.outbox.put(None)
 
 def __testing():
-    from AudioPipeStages import RechunkArray, ReshapeArray
+    from sdr_scanner_2025.audio_pipe_stages import RechunkArray, ReshapeArray
     from rtlsdr import RtlSdr
-    from SpeakerManager import SpeakerManager
+    from sdr_scanner_2025.speaker_manager import SpeakerManager
+    from queue import Queue
+    from threading import Thread
     sdr = RtlSdr()
 
     # Configure SDR
@@ -53,6 +64,8 @@ def __testing():
     sdr.center_freq = 88.3e6   # Hz
     sdr.freq_correction = 60   # PPM
     sdr.gain = 'auto'
+
+    radioFS = sdr.get_sample_rate()
 
     audioFS = 44100
     audioBlockSize = 2**12
@@ -68,7 +81,8 @@ def __testing():
         pipeline = AsyncPipeline(
             [ProvideRawRF(sdr, 2**18), # Make this an sdrSpec class or smth
              DecodeFM(),
-             Downsample(0.25e6, audioFS),
+             LowPassFilter(75e3, radioFS),
+             Downsample(radioFS, audioFS),
              RechunkArray(audioBlockSize),
              ReshapeArray((-1,1)),
              SynchWindow(q), 
