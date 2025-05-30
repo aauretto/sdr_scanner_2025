@@ -1,5 +1,5 @@
 import asyncio
-from sdr_scanner_2025.async_pipeline import AsyncPipeline, BasePipelineStage, AbstractWorker, SynchWindow, Endpoint
+from async_pipeline import AsyncPipeline, BasePipelineStage, AbstractWorker, SynchWindow, Endpoint
 import numpy as np
 
 # Scale factor to do for FM audio since we drift 75kHz in each dir
@@ -52,9 +52,9 @@ class ProvideRawRF(BasePipelineStage):
         await self.outbox.put(None)
 
 def __testing():
-    from sdr_scanner_2025.audio_pipe_stages import RechunkArray, ReshapeArray
+    from audio_pipe_stages import RechunkArray, ReshapeArray
     from rtlsdr import RtlSdr
-    from sdr_scanner_2025.speaker_manager import SpeakerManager
+    from speaker_manager import SpeakerManager
     from queue import Queue
     from threading import Thread
     sdr = RtlSdr()
