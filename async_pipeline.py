@@ -1,5 +1,22 @@
 """
-Async pipeline blocks that can be chained together and run
+Async pipeline blocks that can be chained together and run.
+
+This module provides:
+- An AsyncPipeline implementation that coordinates data flow between stages of the pipeline.
+- A number of pipeline stages that are used to do work on some stream of data.
+
+Notes on naming
+---------------
+The pipeline stages this module provides are named according to the following convention:
+- Worker = Stage that modifies incoming data and sends that modified data down the pipeline. 
+           These classes modify data through their process() method.
+- Window = Stage that does not modify incoming data and instead allows the data to pass through 
+           unchanged (but may do some other computation such as print important information).
+           These classes examine data through their inspect() method.
+
+Notes on stage behavior
+-----------------------
+The stages in this class (other than BaseStage) assume None to be a sentinel value and will stop running when they encounter it.
 
 """
 import asyncio
@@ -35,6 +52,13 @@ class AsyncPipeline():
 
         self.loop.run_until_complete(asyncio.gather(*tasks))
 
+
+# =========================================================================== #
+#                           Pipeline Stage Classes
+# =========================================================================== #
+# Some classes that can be used and provide some basic pipeline stage 
+# functionality. 
+
 class BasePipelineStage(ABC):
     """
     Universal base class for all steps in pipeline. Override execute to determine
@@ -58,6 +82,8 @@ class AbstractWorker(BasePipelineStage):
     """
     Inheritable class that has a single predecessor in the pipeline. Ideal for
     steps that transform or modify the data in some way.
+    Note:
+    - If process returns not None, future pipeline stages may shut down 
     """
     async def execute(self):
         while True:
@@ -74,23 +100,53 @@ class AbstractWorker(BasePipelineStage):
         """
         pass
 
-class SynchWindow(BasePipelineStage):
+class AbstractWindow(BasePipelineStage):
     """
-    Window stage that will allow synchronous code to provide a queue that fills
-    up with the data as it exists at the current point in the pipeline.
+    Inheritable class that has a single predecessor in the pipeline. Does not 
+    modify data but provides it via process for inspection.
     """
-    def __init__(self, queue):
-        super().__init__()
-        self.synchOutbox = queue
-    
     async def execute(self):
         while True:
             data = await self.prevStage.get_result()
-            self.synchOutbox.put(data)
+            self.inspect(data)
             if data is None:
                 await self.outbox.put(None)
                 break
             await self.outbox.put(data)
+
+    @abstractmethod
+    def inspect(self, data):
+        """
+        How to inspect data
+        """
+        pass
+
+class FxApplyWindow(AbstractWindow):
+    """
+    Window that takes a function and applies it on data. Allows use of the 
+    AbstractWindow class but without inheriting if the if the desired work is 
+    simple.
+    """
+    def __init__(self, fx):
+        super().__init__()
+        self.__fx = fx
+    def inspect(self, data):
+        self.__fx(data)
+
+class FxApplyWorker(AbstractWorker):
+    """
+    Worker that takes a function and applies it to data. Allows use of the 
+    AbstractWorker class but without inheriting if the if the desired work is 
+    a simple transform or something.
+    Note:
+    - The function passed in should return a non-None value otherwise it will 
+      shut down later pipeline stages. For function application without  
+    """
+    def __init__(self, fx):
+        super().__init__()
+        self.__fx = fx
+    def process(self, data):
+        return self.__fx(data)
 
 class Endpoint(BasePipelineStage):
     """
@@ -111,7 +167,6 @@ class Endpoint(BasePipelineStage):
     def process(self, data):
         pass
 
-
 def __testing():
     """
     Basic testing and verification
@@ -121,10 +176,9 @@ def __testing():
         def process(self, data):
             return 2 * data
 
-    class PrintStage(AbstractWorker):
-        def process(self, data):
+    class PrintStage(AbstractWindow):
+        def inspect(self, data):
             print(f"[Print From Pipeline] > {data}")
-            return data
 
     class GenerateInts(BasePipelineStage):
         async def execute(self):

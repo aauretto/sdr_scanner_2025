@@ -1,5 +1,5 @@
 import asyncio
-from async_pipeline import AsyncPipeline, BasePipelineStage, AbstractWorker, SynchWindow, Endpoint
+from async_pipeline import AsyncPipeline, BasePipelineStage, AbstractWorker, Endpoint, FxApplyWindow
 import numpy as np
 
 # Scale factor to do for FM audio since we drift 75kHz in each dir
@@ -7,13 +7,15 @@ import numpy as np
 # scaling_factor = Fs / (2 * np.pi * deviation_hz)
 # normalized = phase_diff * scaling_factor
 
-class DecodeFM(AbstractWorker):
-    def process(self, data):
-        """
-        According to the internet this approximates differentiating phase...
-        """
-        diff = np.angle(data[1:] * np.conj(data[:-1]))
-        return diff / np.pi
+def DECODE_FM(sig):
+    """
+    According to the internet this approximates differentiating phase...
+    """
+    diff = np.angle(sig[1:] * np.conj(sig[:-1]))
+    return diff / np.pi
+
+def DECODE_AM(sig):
+    return np.abs(sig)
 
 from scipy.signal import resample
 class Downsample(AbstractWorker):
@@ -28,15 +30,16 @@ class Downsample(AbstractWorker):
     def process(self, data):
         return resample(data, int(len(data) * self.toRate / self.fromRate))
     
-from scipy.signal import lfilter, butter
-class LowPassFilter(AbstractWorker):
+from scipy.signal import lfilter
+class Filter(AbstractWorker):
     """
-    Lowpass filter to isolate band of interest
+    Apply a filter from numerator and denominator coefficients
     """
-    def __init__(self, cutoff, fs, order=5):
+    def __init__(self, b, a):
         super().__init__()
-        self.b, self.a = butter(order, cutoff / (0.5 * fs), btype='low', analog=False)
-
+        self.b = b
+        self.a = a
+    
     def process(self, data):
         return lfilter(self.b, self.a, data)
         
@@ -53,6 +56,7 @@ class ProvideRawRF(BasePipelineStage):
 
 def __testing():
     from audio_pipe_stages import RechunkArray, ReshapeArray
+    from scipy.signal import butter
     from rtlsdr import RtlSdr
     from speaker_manager import SpeakerManager
     from queue import Queue
@@ -77,15 +81,17 @@ def __testing():
         loop = asyncio.new_event_loop()
         asyncio.set_event_loop(loop)
 
+        b, a = butter(5, 100e3 / (0.5 * sdr.get_sample_rate()), btype='low', analog=False)
+
         # Set up and launch pipeline
         pipeline = AsyncPipeline(
             [ProvideRawRF(sdr, 2**18), # Make this an sdrSpec class or smth
-             DecodeFM(),
-             LowPassFilter(75e3, radioFS),
+             FxApplyWindow(DECODE_FM),
+             Filter(b, a),
              Downsample(radioFS, audioFS),
              RechunkArray(audioBlockSize),
              ReshapeArray((-1,1)),
-             SynchWindow(q), 
+             FxApplyWindow(lambda d : q.put(d)), 
              Endpoint()]) 
         pipeline.run_pipeline()
         

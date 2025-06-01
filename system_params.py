@@ -1,57 +1,27 @@
 """
-Parameters maintained in this module:
-
-For the SDR:
-    - Center Freq        => Number
-    - Sample Rate        => Number
-    - Digital Bandwidth  => Number
-    - Squelch            => Number
-    - Current chunk size => Number
-    
-For the Speakers:
-    - Current volume     => Number
-    - Current chunk size => Number
-
+Maintains single location for system parameters as monitored objects.
+See params for different param types.
 """
 
 from threading import Lock
-class BaseParam():
-    """
-    Adds a monitor that will be used when set and get are called
-    """
-    def __init__(self, startVal):
-        self.currVal = startVal
-        self.monitor  = Lock()
-    def set(self, val):
-        with self.monitor:
-            self.currVal = val
-    def get(self):
-        with self.monitor:
-            return self.currVal
-
-from enum import IntEnum
-class StepDir(IntEnum):
-    UP   = 1
-    DOWN = -1
-class NumericParam(BaseParam):
-    def __init__(self, startVal, min, max, stepSize):
-        super().__init__(startVal)        
-        self.min      = min
-        self.max      = max
-        self.stepSize = stepSize
-
-    def set(self, val):
-        if self.min <= val <= self.max:
-            super().set(val)
-        
-    def step(self, dir : StepDir):
-        self.set(self.currVal + self.stepSize * dir)
-            
 class SysParams():
     """
     Bundles system params and provides a single, threadsafe location in which
     those params can be modified.
     """
+
+    _instance = None
+    _lock = Lock()
+
+    def __new__(cls, *args, **kwargs):
+        """
+        Overriden new to enforce singleton class
+        """
+        if cls._instance is None:
+            with cls._lock:
+                if cls._instance is None:  # Avoid TOCVTOU Bug
+                    cls._instance = super().__new__(cls)
+        return cls._instance
 
     def __init__(self):
         self.__params = {}
@@ -69,6 +39,8 @@ class SysParams():
         return self.__params[key]
 
 def __testing():
+    from param_types import BaseParam, NumericParam
+
     ps = SysParams()
 
     ps.register_new_param(BaseParam, "Foo", True)
@@ -80,13 +52,13 @@ def __testing():
     print(f"{ps['Foo'].get() = }")
     
     print(f"{ps['Bar'].get() = }")
-    ps["Bar"].step(StepDir.UP)
+    ps["Bar"].step(NumericParam.StepDir.UP)
     print(f"{ps['Bar'].get() = }")
-    ps["Bar"].step(StepDir.DOWN)
+    ps["Bar"].step(NumericParam.StepDir.DOWN)
     print(f"{ps['Bar'].get() = }")
-    ps["Bar"].step(StepDir.DOWN)
+    ps["Bar"].step(NumericParam.StepDir.DOWN)
     print(f"{ps['Bar'].get() = }")
-    ps["Bar"].step(StepDir.DOWN)
+    ps["Bar"].step(NumericParam.StepDir.DOWN)
     print(f"{ps['Bar'].get() = }")
     
 if __name__ == "__main__":

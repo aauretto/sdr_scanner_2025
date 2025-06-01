@@ -1,4 +1,4 @@
-from async_pipeline import AsyncPipeline, BasePipelineStage, AbstractWorker, SynchWindow, Endpoint
+from async_pipeline import BasePipelineStage, AbstractWorker
 import numpy as np
 
 class RechunkArray(BasePipelineStage):
