@@ -10,8 +10,6 @@ from threading import Thread
 from async_pipeline import AsyncPipeline
 import param_types as ptys
 
-
-
 def main():
     """
     Main entrypoint for program
@@ -39,7 +37,7 @@ def init_params():
     """
     Set up initial parameters for the scanner
     """
-    from radio_pipe_stages import DECODE_FM
+    from demodulation import DECODE_FM
 
     sysPs = sps.SysParams()
 
@@ -78,9 +76,8 @@ def setup_sdr(params):
     params.register_new_param(ptys.ObjParam, "sdr", sdr)
     return sdr
 
-from radio_pipe_stages import ProvideRawRF, Filter, Downsample, Endpoint
-from audio_pipe_stages import RechunkArray, ReshapeArray
-from async_pipeline    import FxApplyWorker, FxApplyWindow
+from system_pipeline_stages import ProvideRawRF, Filter, Downsample, RechunkArray, ReshapeArray, Endpoint
+from async_pipeline         import FxApplyWindow
 def pipeline_worker(bridge, params):
     # Create loop for this thread
     loop = asyncio.new_event_loop()

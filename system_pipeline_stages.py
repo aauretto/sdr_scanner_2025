@@ -2,20 +2,6 @@ import asyncio
 from async_pipeline import AsyncPipeline, BasePipelineStage, AbstractWorker, Endpoint, FxApplyWindow
 import numpy as np
 
-# Scale factor to do for FM audio since we drift 75kHz in each dir
-# deviation_hz = 75000
-# scaling_factor = Fs / (2 * np.pi * deviation_hz)
-# normalized = phase_diff * scaling_factor
-
-def DECODE_FM(sig):
-    """
-    According to the internet this approximates differentiating phase...
-    """
-    diff = np.angle(sig[1:] * np.conj(sig[:-1]))
-    return diff / np.pi
-
-def DECODE_AM(sig):
-    return np.abs(sig)
 
 from scipy.signal import resample
 class Downsample(AbstractWorker):
@@ -54,13 +40,61 @@ class ProvideRawRF(BasePipelineStage):
             await self.outbox.put(chunk)
         await self.outbox.put(None)
 
+class RechunkArray(BasePipelineStage):
+    def __init__(self, tarBlockSize):
+        super().__init__()
+        self.tarBlockSize = tarBlockSize
+        self.partial = np.full(shape = (tarBlockSize,), fill_value=0.0, dtype=np.float32)
+        self.partialLen = 0
+        self.isRunning = True
+
+    async def execute(self):
+        while self.isRunning:
+            await self.consume_blocksz_samples()
+
+    async def consume_blocksz_samples(self):
+        data = await self.prevStage.get_result()
+        dataPos = 0
+        if data is None:
+            await self.outbox.put(None)
+            self.isRunning = False
+            return
+            
+        while dataPos < len(data): # More data available from last time we got data
+
+            # Move samples into buffer
+            amtToMove = min(self.tarBlockSize - self.partialLen, len(data) - dataPos)
+            self.partial[self.partialLen:self.partialLen + amtToMove] = data[dataPos: dataPos + amtToMove]                
+            self.partialLen += amtToMove
+            dataPos += amtToMove
+            
+            # Send when we have enough
+            if self.partialLen == self.tarBlockSize:
+                await self.outbox.put(self.partial.copy())
+                self.partialLen = 0
+
+class ReshapeArray(AbstractWorker):
+    def __init__(self, newShape):
+        super().__init__()
+        self.newShape = newShape
+    def process(self, data): 
+        return data.reshape(*self.newShape)
+
+class Volume(AbstractWorker):
+    """
+    TODO: figure out exactly how volume control should behave
+    """
+    def __init__(self, ref):
+        pass
+
+
 def __testing():
-    from audio_pipe_stages import RechunkArray, ReshapeArray
     from scipy.signal import butter
     from rtlsdr import RtlSdr
     from speaker_manager import SpeakerManager
     from queue import Queue
     from threading import Thread
+    from demodulation import DECODE_FM
     sdr = RtlSdr()
 
     # Configure SDR

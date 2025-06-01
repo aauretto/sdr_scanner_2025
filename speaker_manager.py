@@ -29,8 +29,8 @@ class SpeakerManager():
                 outdata[:] = data
 
         self.stream = sd.OutputStream(
-            samplerate=self.sampRate.get(),
-            blocksize=self.blockSize.get(),
+            samplerate=self.sampRate,
+            blocksize=self.blockSize,
             channels=1,
             dtype='float32',
             callback=audio_callback
