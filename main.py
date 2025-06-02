@@ -49,7 +49,7 @@ def init_params():
     sysPs.register_new_param(ptys.NumericParam , "sdr_dig_bw"    ,     150e3 ,  1e3 ,  250e3 ,     10e3   )
     sysPs.register_new_param(ptys.FuncParam    , "sdr_dec_fx"    , DECODE_FM ,                            )
     sysPs.register_new_param(ptys.NumericParam , "sdr_squelch"   ,       -20 ,  -40 ,      1 ,     0.25   )
-    sysPs.register_new_param(ptys.NumericParam , "sdr_chunk_sz"  ,     2**18 ,    1 ,   None ,        1   )
+    sysPs.register_new_param(ptys.NumericParam , "sdr_chunk_sz"  ,     2**17 ,    1 ,   None ,        1   )
     sysPs.register_new_param(ptys.NumericParam , "spkr_volume"   ,       0.5 ,    0 ,    100 ,        1   )
     sysPs.register_new_param(ptys.NumericParam , "spkr_chunk_sz" ,     2**12 ,    1 ,   None ,        1   )
     sysPs.register_new_param(ptys.NumericParam , "spkr_fs"       ,     44100 ,    1 ,   None ,        1   )
@@ -76,23 +76,40 @@ def setup_sdr(params):
     params.register_new_param(ptys.ObjParam, "sdr", sdr)
     return sdr
 
-from system_pipeline_stages import ProvideRawRF, Filter, Downsample, RechunkArray, ReshapeArray, Endpoint
+from system_pipeline_stages import ProvideRawRF, Filter, Downsample, RechunkArray, ReshapeArray, Endpoint, CalcDecibels
 from async_pipeline         import FxApplyWorker, FxApplyWindow
 def pipeline_worker(bridge, params):
     # Create loop for this thread
     loop = asyncio.new_event_loop()
     asyncio.set_event_loop(loop)
     
+    import time
+    clock = time.time()
+    def tick():
+        nonlocal clock
+        tmp = time.time()
+        print(f"{tmp - clock}s")
+        clock = tmp
+
+    def demod(pdp):
+        pdp.data = params["sdr_dec_fx"](pdp.data)
+
     # Set up and launch pipeline
     pipeline = AsyncPipeline(
         [ProvideRawRF(params["sdr"], params["sdr_chunk_sz"]),
-         FxApplyWorker(params["sdr_dec_fx"]),
+         FxApplyWindow(demod),
          Filter(params["sdr_lp_num"], params["sdr_lp_denom"]),
          Downsample(params["sdr_fs"], params["spkr_fs"]),
          RechunkArray(params["spkr_chunk_sz"]),
          ReshapeArray((-1,1)),
-         FxApplyWindow(lambda d : bridge.put(d)), 
+         FxApplyWindow(lambda d : bridge.put(d.data)),
+        #  FxApplyWindow(lambda d : tick()),
          Endpoint()]) 
+    
+    with open("key.out", "w") as f:
+        for e in pipeline.stages:
+            print(f"{e.gid} > {e.__class__.__name__}", file=f)
+            
     pipeline.run_pipeline()
 
     loop.close()

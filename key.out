@@ -1,0 +1,8 @@
+1 > ProvideRawRF
+2 > FxApplyWindow
+3 > Filter
+4 > Downsample
+5 > RechunkArray
+6 > ReshapeArray
+7 > FxApplyWindow
+8 > Endpoint

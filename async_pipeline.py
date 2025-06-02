@@ -19,6 +19,13 @@ Notes on stage behavior
 The stages in this class (other than BaseStage) assume None to be a sentinel value and will stop running when they encounter it.
 
 """
+
+_CURR_GID = 0
+def _GET_GID():
+    global _CURR_GID
+    _CURR_GID += 1
+    return _CURR_GID
+
 import asyncio
 from abc import ABC, abstractmethod
 class AsyncPipeline():
@@ -67,6 +74,7 @@ class BasePipelineStage(ABC):
     def __init__(self, prevStage = None):
         self.prevStage = self.register_prev_stage(prevStage)
         self.outbox = asyncio.Queue()
+        self.gid = _GET_GID()
 
     def register_prev_stage(self, prevStage):
         self.prevStage = prevStage
@@ -78,6 +86,8 @@ class BasePipelineStage(ABC):
     async def execute(self):
         pass
 
+import time
+
 class AbstractWorker(BasePipelineStage):
     """
     Inheritable class that has a single predecessor in the pipeline. Ideal for
@@ -87,11 +97,17 @@ class AbstractWorker(BasePipelineStage):
     """
     async def execute(self):
         while True:
+            start = time.time()
             data = await self.prevStage.get_result()
             if data is None:
                 await self.outbox.put(None)
                 break
             await self.outbox.put(self.process(data))
+            print(f"{self.__class__.__name__}")
+            t = data.meta["timestamp"]
+            time_str = time.strftime("%H:%M:%S", time.localtime(t))
+            ms = int((t % 1) * 1000)
+            print(f"[{self.gid}][{time_str}.{ms:03d}] > {self.__class__.__name__} > {time.time() - start} to process")
 
     @abstractmethod
     def process(self, data):
@@ -107,12 +123,20 @@ class AbstractWindow(BasePipelineStage):
     """
     async def execute(self):
         while True:
+            start = time.time()
             data = await self.prevStage.get_result()
             self.inspect(data)
             if data is None:
                 await self.outbox.put(None)
                 break
             await self.outbox.put(data)
+            t = data.meta["timestamp"]
+            time_str = time.strftime("%H:%M:%S", time.localtime(t))
+            ms = int((t % 1) * 1000)
+            print(f"[{self.gid}][{time_str}.{ms:03d}] > {self.__class__.__name__} > {time.time() - start} to process")
+
+
+
 
     @abstractmethod
     def inspect(self, data):
