@@ -121,18 +121,6 @@ class AbstractWindow(BasePipelineStage):
         """
         pass
 
-class FxApplyWindow(AbstractWindow):
-    """
-    Window that takes a function and applies it on data. Allows use of the 
-    AbstractWindow class but without inheriting if the if the desired work is 
-    simple.
-    """
-    def __init__(self, fx):
-        super().__init__()
-        self.__fx = fx
-    def inspect(self, data):
-        self.__fx(data)
-
 class FxApplyWorker(AbstractWorker):
     """
     Worker that takes a function and applies it to data. Allows use of the 
@@ -147,6 +135,18 @@ class FxApplyWorker(AbstractWorker):
         self.__fx = fx
     def process(self, data):
         return self.__fx(data)
+
+class FxApplyWindow(AbstractWindow):
+    """
+    Window that takes a function and applies it on data. Allows use of the 
+    AbstractWindow class but without inheriting if the if the desired work is 
+    simple.
+    """
+    def __init__(self, fx):
+        super().__init__()
+        self.__fx = fx
+    def inspect(self, data):
+        self.__fx(data)
 
 class Endpoint(BasePipelineStage):
     """

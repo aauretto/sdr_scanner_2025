@@ -1,5 +1,5 @@
 import asyncio
-from async_pipeline import AsyncPipeline, BasePipelineStage, AbstractWorker, Endpoint, FxApplyWindow
+from async_pipeline import AsyncPipeline, BasePipelineStage, AbstractWorker, Endpoint, FxApplyWindow, FxApplyWorker
 import numpy as np
 
 
@@ -120,7 +120,7 @@ def __testing():
         # Set up and launch pipeline
         pipeline = AsyncPipeline(
             [ProvideRawRF(sdr, 2**18), # Make this an sdrSpec class or smth
-             FxApplyWindow(DECODE_FM),
+             FxApplyWorker(DECODE_FM),
              Filter(b, a),
              Downsample(radioFS, audioFS),
              RechunkArray(audioBlockSize),

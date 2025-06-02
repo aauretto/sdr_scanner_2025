@@ -77,7 +77,7 @@ def setup_sdr(params):
     return sdr
 
 from system_pipeline_stages import ProvideRawRF, Filter, Downsample, RechunkArray, ReshapeArray, Endpoint
-from async_pipeline         import FxApplyWindow
+from async_pipeline         import FxApplyWorker, FxApplyWindow
 def pipeline_worker(bridge, params):
     # Create loop for this thread
     loop = asyncio.new_event_loop()
@@ -86,7 +86,7 @@ def pipeline_worker(bridge, params):
     # Set up and launch pipeline
     pipeline = AsyncPipeline(
         [ProvideRawRF(params["sdr"], params["sdr_chunk_sz"]),
-         FxApplyWindow(params["sdr_dec_fx"]),
+         FxApplyWorker(params["sdr_dec_fx"]),
          Filter(params["sdr_lp_num"], params["sdr_lp_denom"]),
          Downsample(params["sdr_fs"], params["spkr_fs"]),
          RechunkArray(params["spkr_chunk_sz"]),
