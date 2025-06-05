@@ -176,6 +176,7 @@ class MPbtnWrapper():
         self.__stopSig     = mp.Event()
         self.__proc        = None
         self.__btnEvtPairs = []
+        self.__evtQ        = mp.Queue() 
 
     def register_btns(self, pairs):
         """
@@ -184,7 +185,6 @@ class MPbtnWrapper():
         self.__btnEvtPairs = pairs
 
     def start(self):
-        q = mp.Queue()
         stopEvt = mp.Event()
 
         def worker_process(btnCfg, queue, stopSig):
@@ -198,10 +198,13 @@ class MPbtnWrapper():
         
             bh.cleanup_on_stop(stopSig) 
 
-        self.__proc = mp.Process(target=worker_process, args=(self.__btnEvtPairs, q,stopEvt), daemon=True)
+        self.__proc = mp.Process(target=worker_process, args=(self.__btnEvtPairs, self.__evtQ, stopEvt), daemon=True)
         self.__proc.start()
 
-        return q
+        return self.__evtQ
+
+    def get_queue(self):
+        return self.__evtQ
 
     def cleanup(self):
         self.__stopSig.set()

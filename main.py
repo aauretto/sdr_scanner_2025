@@ -21,7 +21,7 @@ def main():
 
     pipelineThread = Thread(target=pipeline_worker, args = (bridgeFromPipeline, params))
     # Insert a thread here that does screen
-    # Insert a thread here that does reading from GPIO
+    btnMgr = setup_btns()
 
     sm = SpeakerManager(blockSize=params["spkr_chunk_sz"], sampRate=params["spkr_fs"])
     sm.set_source(bridgeFromPipeline)
@@ -33,6 +33,32 @@ def main():
 
     sm.stop()
     
+def setup_btns():
+    """
+    Sets up buttons.
+    Returns manager that runs buttons
+    """
+    import button_handler as bh
+    btnCfg = [
+        #    pin    Event     Press
+            (11  ,  "M3"    , bh.PRESS_TYPE.DOWN) ,
+            (13  ,  "M2"    , bh.PRESS_TYPE.DOWN) ,
+            (15  ,  "M1"    , bh.PRESS_TYPE.DOWN) ,
+            (29  ,  "ok"    , bh.PRESS_TYPE.DOWN) ,
+            (31  ,  "right" , bh.PRESS_TYPE.DOWN) ,
+            (33  ,  "left"  , bh.PRESS_TYPE.DOWN) ,
+            (35  ,  "down"  , bh.PRESS_TYPE.UP) ,
+            (37  ,  "up"    , bh.PRESS_TYPE.CASCADE) ,
+            ]
+
+    bh.setup_hw()
+
+    mpManager = bh.MPbtnWrapper()
+    mpManager.register_btns(btnCfg)
+    mpManager.start()
+
+    return mpManager 
+
 def init_params():
     """
     Set up initial parameters for the scanner
