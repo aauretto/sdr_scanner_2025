@@ -48,12 +48,12 @@ class ScreenDrawer():
 
     def draw_tuning_window(self, draw):
         draw.line((0, 26, 128, 26), fill="white")
-        freq = f"{88.3:08.3f}"
+        freq = f"{88.3:09.4f}"
         mhz = "MHz"
-        freqFt = self.load_font(20)
+        freqFt = self.load_font(18)
         mhzFt  = self.load_font(8)
 
-        draw.text((5, 34), freq, font = freqFt, fill="white")
+        draw.text((5, 36), freq, font = freqFt, fill="white")
         draw.text((103, 45), mhz, font = mhzFt, fill="white")
 
     def run(self):

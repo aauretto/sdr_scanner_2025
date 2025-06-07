@@ -67,18 +67,18 @@ def init_params():
 
     sysPs = sps.SysParams()
 
-    # =================================================================================================== #
-    #                          Type of param      Name              InitVal    Min      Max      StepSize #
-    # =================================================================================================== #
-    sysPs.register_new_param(ptys.NumericParam , "sdr_cf"        ,    88.3e6 , 24e6 , 1766e6 ,    100e3   )
-    sysPs.register_new_param(ptys.NumericParam , "sdr_fs"        ,    0.25e6 ,    0 ,    2e9 ,     None   )
-    sysPs.register_new_param(ptys.NumericParam , "sdr_dig_bw"    ,     150e3 ,  1e3 ,  250e3 ,     10e3   )
-    sysPs.register_new_param(ptys.FuncParam    , "sdr_dec_fx"    , DECODE_FM ,                            )
-    sysPs.register_new_param(ptys.NumericParam , "sdr_squelch"   ,       -20 ,  -40 ,      1 ,     0.25   )
-    sysPs.register_new_param(ptys.NumericParam , "sdr_chunk_sz"  ,     2**17 ,    1 ,   None ,        1   )
-    sysPs.register_new_param(ptys.NumericParam , "spkr_volume"   ,       0.5 ,    0 ,    100 ,        1   )
-    sysPs.register_new_param(ptys.NumericParam , "spkr_chunk_sz" ,     2**12 ,    1 ,   None ,        1   )
-    sysPs.register_new_param(ptys.NumericParam , "spkr_fs"       ,     44100 ,    1 ,   None ,        1   )
+    # ========================================================================================================================== #
+    #                          Type of param      Name              InitVal    Min      Max      StepSizes                       #
+    # ========================================================================================================================== #
+    sysPs.register_new_param(ptys.NumericParam , "sdr_cf"        ,    88.3e6 , 24e6 , 1766e6 ,    [1e4,1e5,1e6,1e7,1e8,1e2,1e3]  )
+    sysPs.register_new_param(ptys.NumericParam , "sdr_fs"        ,    0.25e6 ,    0 ,    2e9 ,     None                          )
+    sysPs.register_new_param(ptys.NumericParam , "sdr_dig_bw"    ,     150e3 ,  1e3 ,  250e3 ,    [10e3,100e3,1e3]               )
+    sysPs.register_new_param(ptys.FuncParam    , "sdr_dec_fx"    , DECODE_FM ,                                                   )
+    sysPs.register_new_param(ptys.NumericParam , "sdr_squelch"   ,       -20 ,  -40 ,      1 ,    [10, 0.001, 0.1, 1]            )
+    sysPs.register_new_param(ptys.NumericParam , "sdr_chunk_sz"  ,     2**17 ,    1 ,   None ,    [1]                            )
+    sysPs.register_new_param(ptys.NumericParam , "spkr_volume"   ,       0.5 ,    0 ,    100 ,    [10,1]                         )
+    sysPs.register_new_param(ptys.NumericParam , "spkr_chunk_sz" ,     2**12 ,    1 ,   None ,    [1]                            )
+    sysPs.register_new_param(ptys.NumericParam , "spkr_fs"       ,     44100 ,    1 ,   None ,    [1]                            )
 
     return sysPs
 

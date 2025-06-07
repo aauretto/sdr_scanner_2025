@@ -18,18 +18,25 @@ class NumericParam(BaseParam):
     class StepDir(IntEnum):
         UP   = 1
         DOWN = -1
-    def __init__(self, startVal, min, max, stepSize):
+    def __init__(self, startVal, min, max, stepSizes):
         super().__init__(startVal)        
         self.min      = min
         self.max      = max
-        self.stepSize = stepSize
+        self.stepSizes = stepSizes
+        self.stepSizeIdx = 0
+
+    def get_step_size(self):
+        return self.stepSizes[self.stepSizeIdx]
+    
+    def cycle_step_size(self, dir : StepDir):
+        self.stepSizeIdx = (self.stepSizeIdx + dir) % len(self.stepSizes)
 
     def set(self, val):
         if self.min <= val <= self.max:
             super().set(val)
         
     def step(self, dir : StepDir):
-        self.set(self.currVal + self.stepSize * dir)
+        self.set(self.currVal + self.get_step_size() * dir)
 
     def __int__(self):
         with self.monitor:
@@ -116,7 +123,7 @@ def __testing():
 
     print("========================================")
     
-    p = NumericParam(1, 0, 2, 0.5)
+    p = NumericParam(1, 0, 2, [0.5])
     
     print(p + 1)
     print(p - 2)
