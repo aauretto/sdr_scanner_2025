@@ -32,7 +32,7 @@ class SysParams():
         """
         if name in self.__params:
             print(f"System parameter '{name}' already exists. Overwriting.")
-
+        print(f"[System Params] > Registering parameter under key {name}")
         self.__params[name] = paramKind(initialValue, *args)
 
     def __getitem__(self, key):

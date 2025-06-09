@@ -15,12 +15,11 @@ from hw_interface import hw_enums
 
 class HWMenuManager():
 
-    def __init__(self, inbox, outbox, params):
+    def __init__(self, inbox, params):
         self.__stopSig     = mp.Event()
         self.__proc        = None
         self.__btnEvtPairs = []
         self.__inbox       = inbox
-        self.__outbox      = outbox
         self.__params      = params
         self.__btnQueue    = mp.Queue()
 
@@ -97,12 +96,12 @@ class HWMenuManager():
     def handle_freq_tune(self, evt):
         if evt == hw_enums.BtnEvents.UP:
             self.__params["sdr_cf"].step(ptys.NumericParam.StepDir.UP) 
-            # self.__params["sdr"].set_center_freq(self.__params["cf"].get())
+            self.__params["sdr"].set_center_freq(self.__params["cf"].get())
             self.__menuState[hw_enums.Menus.FREQTUNE]["cf"] = self.__params["sdr_cf"].get() / 1e6
             print(f"New cf {self.__params['sdr_cf'].get()}")
         elif evt == hw_enums.BtnEvents.DOWN:
             self.__params["sdr_cf"].step(ptys.NumericParam.StepDir.DOWN) 
-            # self.__params["sdr"].set_center_freq(self.__params["cf"].get())
+            self.__params["sdr"].set_center_freq(self.__params["cf"].get())
             self.__menuState[hw_enums.Menus.FREQTUNE]["cf"] = self.__params["sdr_cf"].get() / 1e6
             print(f"New cf {self.__params['sdr_cf'].get()}")
         elif evt == hw_enums.BtnEvents.LEFT:
@@ -146,6 +145,5 @@ class HWMenuManager():
 
     def stop(self):
         self.__stopSig.set()
-        print("Stopped proc")
+        print("[HWManager] > Stopping")
         self.__proc.join()
-        print("Joined")

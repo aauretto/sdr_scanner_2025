@@ -20,17 +20,10 @@ def __testing():
              ]
 
     bridgeToHW = mp.Queue() # Gets meta from pipeline over to screen
-    bridgeFromHW = mp.Queue()
-    mpManager =  HWMenuManager(bridgeToHW, bridgeFromHW, init_params())
-
-    mpManager.register_btns(btnCfg)
-
-    mpManager.start()
-    print("Left start")
-
-    time.sleep(10)
-
-    mpManager.stop()
-    
+    hwManager =  HWMenuManager(bridgeToHW, init_params())
+    def hw_worker():
+        hwManager.register_btns(btnCfg)
+        hwManager.start()
+            
 if __name__ == "__main__":
     __testing()

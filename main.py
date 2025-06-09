@@ -14,74 +14,71 @@ def main():
     """
     Main entrypoint for program
     """
+    # initialize stuff
     params = init_params()
     setup_sdr(params)
     setup_lowpass(params)
-    bridgeFromPipeline = Queue()
+    hwManager = start_gpio_hw(params)
 
-    pipelineThread = Thread(target=pipeline_worker, args = (bridgeFromPipeline, params))
-    # Insert a process here that does screen (needs metadata from pipeline window)
-    # Wrap button manager and screen into single hw driver process?
-    # btnMgr = setup_btns()
+    # Connect decoding pipeline to speakers
+    bridgeFromPipeline = Queue()
+    pipelineThread = Thread(target=pipeline_worker, args = (bridgeFromPipeline, params), daemon=True)
 
     sm = SpeakerManager(blockSize=params["spkr_chunk_sz"], sampRate=params["spkr_fs"])
     sm.set_source(bridgeFromPipeline)
     sm.init_stream()
     sm.start()
 
-    pipelineThread.start()
+    pipelineThread.start() # Will go forever unless error encountered.
     pipelineThread.join()
-
+    hwManager.stop()
     sm.stop()
+
+from hw_interface import BtnEvents, PRESS_TYPE, HWMenuManager
+import multiprocessing as mp
+def start_gpio_hw(params):
+    btnCfg = [
+        #    pin    Event             Press Type
+            (17  ,  BtnEvents.M3    , PRESS_TYPE.DOWN) ,
+            (27  ,  BtnEvents.M2    , PRESS_TYPE.DOWN) ,
+            (22  ,  BtnEvents.M1    , PRESS_TYPE.DOWN) ,
+            (5   ,  BtnEvents.OK    , PRESS_TYPE.DOWN) ,
+            (6   ,  BtnEvents.RIGHT , PRESS_TYPE.DOWN) ,
+            (13  ,  BtnEvents.LEFT  , PRESS_TYPE.DOWN) ,
+            (19  ,  BtnEvents.DOWN  , PRESS_TYPE.CASCADE) ,
+            (26  ,  BtnEvents.UP    , PRESS_TYPE.CASCADE) ,
+            ]
+
+    bridgeToHW = mp.Queue() # Gets meta from pipeline over to screen
+    hwManager =  HWMenuManager(bridgeToHW, params)
+    def hw_worker():
+        hwManager.register_btns(btnCfg)
+        hwManager.start()
+    Thread(target=hw_worker, args=(), daemon=True).start()
+    return hwManager
     
-# def setup_btns():
-#     """
-#     Sets up buttons.
-#     Returns manager that runs buttons
-#     """
-#     import hw_interface.button_handler as bh
-#     btnCfg = [
-#         #    pin    Event     Press
-#             (11  ,  "M3"    , bh.PRESS_TYPE.DOWN) ,
-#             (13  ,  "M2"    , bh.PRESS_TYPE.DOWN) ,
-#             (15  ,  "M1"    , bh.PRESS_TYPE.DOWN) ,
-#             (29  ,  "ok"    , bh.PRESS_TYPE.DOWN) ,
-#             (31  ,  "right" , bh.PRESS_TYPE.DOWN) ,
-#             (33  ,  "left"  , bh.PRESS_TYPE.DOWN) ,
-#             (35  ,  "down"  , bh.PRESS_TYPE.UP) ,
-#             (37  ,  "up"    , bh.PRESS_TYPE.CASCADE) ,
-#             ]
-
-#     bh.setup_hw()
-
-#     mpManager = bh.MPbtnWrapper()
-#     mpManager.register_btns(btnCfg)
-#     mpManager.start()
-
-#     return mpManager 
-
 def init_params():
     """
     Set up initial parameters for the scanner
     """
     from demodulation import DECODE_FM
 
-    sysPs = sps.SysParams()
+    params = sps.SysParams()
 
     # ========================================================================================================================== #
     #                          Type of param      Name              InitVal    Min      Max      StepSizes                       #
     # ========================================================================================================================== #
-    sysPs.register_new_param(ptys.NumericParam , "sdr_cf"        ,    88.3e6 , 24e6 , 1766e6 ,    [1e4,1e5,1e6,1e7,1e8,1e9,1e2,1e3]  )
-    sysPs.register_new_param(ptys.NumericParam , "sdr_fs"        ,    0.25e6 ,    0 ,    2e9 ,     None                          )
-    sysPs.register_new_param(ptys.NumericParam , "sdr_dig_bw"    ,     150e3 ,  1e3 ,  250e3 ,    [10e3,100e3,1e3]               )
-    sysPs.register_new_param(ptys.FuncParam    , "sdr_dec_fx"    , DECODE_FM ,                                                   )
-    sysPs.register_new_param(ptys.NumericParam , "sdr_squelch"   ,       -20 ,  -40 ,      1 ,    [10, 0.001, 0.1, 1]            )
-    sysPs.register_new_param(ptys.NumericParam , "sdr_chunk_sz"  ,     2**14 ,    1 ,   None ,    [1]                            )
-    sysPs.register_new_param(ptys.NumericParam , "spkr_volume"   ,       0.5 ,    0 ,    100 ,    [10,1]                         )
-    sysPs.register_new_param(ptys.NumericParam , "spkr_chunk_sz" ,     2**12 ,    1 ,   None ,    [1]                            )
-    sysPs.register_new_param(ptys.NumericParam , "spkr_fs"       ,     44100 ,    1 ,   None ,    [1]                            )
+    params.register_new_param(ptys.NumericParam , "sdr_cf"        ,    88.3e6 , 24e6 , 1766e6 ,    [1e4,1e5,1e6,1e7,1e8,1e9,1e2,1e3]  )
+    params.register_new_param(ptys.NumericParam , "sdr_fs"        ,    0.25e6 ,    0 ,    2e9 ,     None                          )
+    params.register_new_param(ptys.NumericParam , "sdr_dig_bw"    ,     150e3 ,  1e3 ,  250e3 ,    [10e3,100e3,1e3]               )
+    params.register_new_param(ptys.FuncParam    , "sdr_dec_fx"    , DECODE_FM ,                                                   )
+    params.register_new_param(ptys.NumericParam , "sdr_squelch"   ,       -20 ,  -40 ,      1 ,    [10, 0.001, 0.1, 1]            )
+    params.register_new_param(ptys.NumericParam , "sdr_chunk_sz"  ,     2**14 ,    1 ,   None ,    [1]                            )
+    params.register_new_param(ptys.NumericParam , "spkr_volume"   ,       0.5 ,    0 ,    100 ,    [10,1]                         )
+    params.register_new_param(ptys.NumericParam , "spkr_chunk_sz" ,     2**12 ,    1 ,   None ,    [1]                            )
+    params.register_new_param(ptys.NumericParam , "spkr_fs"       ,     44100 ,    1 ,   None ,    [1]                            )
 
-    return sysPs
+    return params
 
 from scipy.signal import butter
 def setup_lowpass(params):
