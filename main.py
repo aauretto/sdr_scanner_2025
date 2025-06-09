@@ -68,7 +68,7 @@ def init_params():
     # ========================================================================================================================== #
     #                          Type of param      Name              InitVal    Min      Max      StepSizes                       #
     # ========================================================================================================================== #
-    params.register_new_param(ptys.NumericParam , "sdr_cf"        ,    88.3e6 , 24e6 , 1766e6 ,    [1e4,1e5,1e6,1e7,1e8,1e9,1e2,1e3]  )
+    params.register_new_param(ptys.NumericParam , "sdr_cf"        ,    88.3e6 , 30e6 , 1766e6 ,    [1e4,1e5,1e6,1e7,1e8,1e9,1e2,1e3]  )
     params.register_new_param(ptys.NumericParam , "sdr_fs"        ,    0.25e6 ,    0 ,    2e9 ,     None                          )
     params.register_new_param(ptys.NumericParam , "sdr_dig_bw"    ,     150e3 ,  1e3 ,  250e3 ,    [10e3,100e3,1e3]               )
     params.register_new_param(ptys.FuncParam    , "sdr_dec_fx"    , DECODE_FM ,                                                   )
@@ -87,6 +87,7 @@ def setup_lowpass(params):
     params.register_new_param(ptys.ObjParam, "sdr_lp_num", fmLpNum)
     params.register_new_param(ptys.ObjParam, "sdr_lp_denom", fmLpDenom)
 
+import time
 def setup_sdr(params):
     sdr = RtlSdr()
 
@@ -96,7 +97,7 @@ def setup_sdr(params):
     sdr.freq_correction = 60
     sdr.gain = 'auto'
 
-    params["sdr_cf"].set(sdr.get_sample_rate())
+    params["sdr_cf"].set(sdr.get_center_freq())
     params.register_new_param(ptys.ObjParam, "sdr", sdr)
     return sdr
 

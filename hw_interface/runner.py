@@ -96,12 +96,12 @@ class HWMenuManager():
     def handle_freq_tune(self, evt):
         if evt == hw_enums.BtnEvents.UP:
             self.__params["sdr_cf"].step(ptys.NumericParam.StepDir.UP) 
-            self.__params["sdr"].set_center_freq(self.__params["cf"].get())
+            self.__params["sdr"].set_center_freq(self.__params["sdr_cf"].get())
             self.__menuState[hw_enums.Menus.FREQTUNE]["cf"] = self.__params["sdr_cf"].get() / 1e6
             print(f"New cf {self.__params['sdr_cf'].get()}")
         elif evt == hw_enums.BtnEvents.DOWN:
             self.__params["sdr_cf"].step(ptys.NumericParam.StepDir.DOWN) 
-            self.__params["sdr"].set_center_freq(self.__params["cf"].get())
+            self.__params["sdr"].set_center_freq(self.__params["sdr_cf"].get())
             self.__menuState[hw_enums.Menus.FREQTUNE]["cf"] = self.__params["sdr_cf"].get() / 1e6
             print(f"New cf {self.__params['sdr_cf'].get()}")
         elif evt == hw_enums.BtnEvents.LEFT:
@@ -139,9 +139,6 @@ class HWMenuManager():
             evt = self.__btnQueue.get()
             print(f"Got event: {evt}")
             self.handle_event(evt)
-        
-
-
 
     def stop(self):
         self.__stopSig.set()
