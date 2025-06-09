@@ -5,18 +5,13 @@ from threading import Thread, Event, Lock
 from typing import Any
 from enum import Enum, auto
 
-def setup_hw():
-    """
-    Tell board to use board numbering. Use if not using another module that already sets up GPIO.
-    """
-    GPIO.setmode(GPIO.BOARD)
-
 class PRESS_TYPE(Enum):
     DOWN    = auto()
     UP      = auto()
     BOTH    = auto()
     CASCADE = auto()
 
+import time
 class ButtonHandler():
 
     def __init__(self, evtQueue):
@@ -25,7 +20,8 @@ class ButtonHandler():
         self.__active  = True
 
         self.__evtQ = evtQueue
-
+        GPIO.setmode(GPIO.BCM)   
+    
 
     def register_button(self, pin: int, event: Any, pressTy: PRESS_TYPE, timeBtPresses: float = 0.1, delayBeforeCasc: float = 0.5):
         """
@@ -161,88 +157,12 @@ class ButtonHandler():
         while self.__active:
             yield self.__evtQ.get()
 
-    def cleanup(self):
+    def stop(self):
         self.__active = False
         self.__evtQ.put(None) # Unstick queue if needed
-        GPIO.cleanup()
 
-    def cleanup_on_stop(self, stopSig):
+    def stop_on_signal(self, stopSig):
         stopSig.wait()
-        self.cleanup()
-
-import multiprocessing as mp
-class MPbtnWrapper():
-    def __init__(self):
-        self.__stopSig     = mp.Event()
-        self.__proc        = None
-        self.__btnEvtPairs = []
-        self.__evtQ        = mp.Queue() 
-
-    def register_btns(self, pairs):
-        """
-        Iterable of pairs of pin vals and events to send when those vals are pressed
-        """
-        self.__btnEvtPairs = pairs
-
-    def start(self):
-        stopEvt = mp.Event()
-
-        def worker_process(btnCfg, queue, stopSig):
-            bh = ButtonHandler(queue)
-            
-            for (p, e, t) in btnCfg:
-                bh.register_button(p, e, t)
-                print(f"[Multi-Proc Button Manager] > Registered pin {p} with event {e} and press type {t}!")
-
-            print("[Multi-Proc Button Manager] > All Buttons registered!")
-        
-            bh.cleanup_on_stop(stopSig) 
-
-        self.__proc = mp.Process(target=worker_process, args=(self.__btnEvtPairs, self.__evtQ, stopEvt), daemon=True)
-        self.__proc.start()
-
-        return self.__evtQ
-
-    def get_queue(self):
-        return self.__evtQ
-
-    def cleanup(self):
-        self.__stopSig.set()
-        print("Stopped proc")
-        self.__proc.join()
+        self.stop()
 
 
-import time
-
-def __testing():
-    btnCfg = [
-            #    pin    Event     Press
-                (11  ,  "M3"    , PRESS_TYPE.DOWN) ,
-                (13  ,  "M2"    , PRESS_TYPE.DOWN) ,
-                (15  ,  "M1"    , PRESS_TYPE.DOWN) ,
-                (29  ,  "ok"    , PRESS_TYPE.DOWN) ,
-                (31  ,  "right" , PRESS_TYPE.DOWN) ,
-                (33  ,  "left"  , PRESS_TYPE.DOWN) ,
-                (35  ,  "down"  , PRESS_TYPE.UP) ,
-                (37  ,  "up"    , PRESS_TYPE.CASCADE) ,
-             ]
-
-    setup_hw()
-
-    mpManager = MPbtnWrapper()
-    mpManager.register_btns(btnCfg)
-
-    evtQ = mpManager.start()
-
-
-    while (evt := evtQ.get()) != None:
-        try:
-            print(evt)
-        except KeyboardInterrupt:
-            mpManager.cleanup()
-    
-if __name__ == "__main__":
-    __testing()
-
-
-time.monotonic()

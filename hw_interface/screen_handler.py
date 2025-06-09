@@ -4,22 +4,19 @@ from luma.core.render import canvas
 from PIL import Image, ImageFont
 import RPi.GPIO as GPIO
 import time
+# import hw_interface.runner.HWMenuManager.Menus as Menus
+from hw_interface import hw_enums
 
 GPIO.setwarnings(False)
 
 class ScreenDrawer():
 
-    def __init__(self):
+    def __init__(self):        
         self.__FRAME_RATE = 30
         self.__SECS_PER_FRAME = 1/self.__FRAME_RATE
         self.__serial = spi(port=0, device=0, gpio_DC=25, gpio_RST=24, bus_speed_hz=8_000_000)
         self.__device = ssd1309(self.__serial, width=128, height=64)
         self.__running = True
-
-        self.__bitmaps = {}
-        self.load_static_image("./bitmaps/boot_splash.bmp", "boot")
-
-        self.__device.display(self.__bitmaps["boot"])
 
         # Font stuff
         self.__fonts = {}
@@ -33,22 +30,17 @@ class ScreenDrawer():
             self.__fonts[pt] = ImageFont.truetype("/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf", pt)
         return self.__fonts[pt]
 
-    def load_static_image(self, imgPath, imgName):
-        image = Image.open(imgPath).convert("1")  # Convert to 1-bit B/W
-        image = image.resize(self.__device.size)
-        self.__bitmaps[imgName] = image
-    
-    def draw_frame(self):
+    def draw_frame(self, meta, menuState):
         with canvas(self.__device) as draw:
             draw.rectangle((0, 0, 127, 63), outline=1, fill=0)
 
-            self.draw_tuning_window(draw)
+            self.draw_tuning_window(draw, meta)
 
             time.sleep(self.__SECS_PER_FRAME)
 
-    def draw_tuning_window(self, draw):
+    def draw_tuning_window(self, draw, meta):
         draw.line((0, 26, 128, 26), fill="white")
-        freq = f"{88.3:09.4f}"
+        freq = f"{meta[hw_enums.Menus.FREQTUNE]['cf']:09.4f}"
         mhz = "MHz"
         freqFt = self.load_font(18)
         mhzFt  = self.load_font(8)
@@ -56,11 +48,17 @@ class ScreenDrawer():
         draw.text((5, 36), freq, font = freqFt, fill="white")
         draw.text((103, 45), mhz, font = mhzFt, fill="white")
 
-    def run(self):
+        # Draw Cursor:
+        x = 5 + meta[hw_enums.Menus.FREQTUNE]["cursorPos"] * 11 + (meta[hw_enums.Menus.FREQTUNE]["cursorPos"] >= 4) * 6
+        y = 55
+        draw.line((x, y, x + 10, y), fill="white") 
+
+    def run(self, meta, menuState):
         while self.__running:
-            self.draw_frame()
+            self.draw_frame(meta, menuState)
 
-
+    def stop(self):
+        self.__running = False
 
 def __testing():
     sd = ScreenDrawer()

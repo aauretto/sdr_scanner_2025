@@ -20,8 +20,9 @@ def main():
     bridgeFromPipeline = Queue()
 
     pipelineThread = Thread(target=pipeline_worker, args = (bridgeFromPipeline, params))
-    # Insert a thread here that does screen
-    btnMgr = setup_btns()
+    # Insert a process here that does screen (needs metadata from pipeline window)
+    # Wrap button manager and screen into single hw driver process?
+    # btnMgr = setup_btns()
 
     sm = SpeakerManager(blockSize=params["spkr_chunk_sz"], sampRate=params["spkr_fs"])
     sm.set_source(bridgeFromPipeline)
@@ -33,31 +34,31 @@ def main():
 
     sm.stop()
     
-def setup_btns():
-    """
-    Sets up buttons.
-    Returns manager that runs buttons
-    """
-    import button_handler as bh
-    btnCfg = [
-        #    pin    Event     Press
-            (11  ,  "M3"    , bh.PRESS_TYPE.DOWN) ,
-            (13  ,  "M2"    , bh.PRESS_TYPE.DOWN) ,
-            (15  ,  "M1"    , bh.PRESS_TYPE.DOWN) ,
-            (29  ,  "ok"    , bh.PRESS_TYPE.DOWN) ,
-            (31  ,  "right" , bh.PRESS_TYPE.DOWN) ,
-            (33  ,  "left"  , bh.PRESS_TYPE.DOWN) ,
-            (35  ,  "down"  , bh.PRESS_TYPE.UP) ,
-            (37  ,  "up"    , bh.PRESS_TYPE.CASCADE) ,
-            ]
+# def setup_btns():
+#     """
+#     Sets up buttons.
+#     Returns manager that runs buttons
+#     """
+#     import hw_interface.button_handler as bh
+#     btnCfg = [
+#         #    pin    Event     Press
+#             (11  ,  "M3"    , bh.PRESS_TYPE.DOWN) ,
+#             (13  ,  "M2"    , bh.PRESS_TYPE.DOWN) ,
+#             (15  ,  "M1"    , bh.PRESS_TYPE.DOWN) ,
+#             (29  ,  "ok"    , bh.PRESS_TYPE.DOWN) ,
+#             (31  ,  "right" , bh.PRESS_TYPE.DOWN) ,
+#             (33  ,  "left"  , bh.PRESS_TYPE.DOWN) ,
+#             (35  ,  "down"  , bh.PRESS_TYPE.UP) ,
+#             (37  ,  "up"    , bh.PRESS_TYPE.CASCADE) ,
+#             ]
 
-    bh.setup_hw()
+#     bh.setup_hw()
 
-    mpManager = bh.MPbtnWrapper()
-    mpManager.register_btns(btnCfg)
-    mpManager.start()
+#     mpManager = bh.MPbtnWrapper()
+#     mpManager.register_btns(btnCfg)
+#     mpManager.start()
 
-    return mpManager 
+#     return mpManager 
 
 def init_params():
     """
@@ -70,12 +71,12 @@ def init_params():
     # ========================================================================================================================== #
     #                          Type of param      Name              InitVal    Min      Max      StepSizes                       #
     # ========================================================================================================================== #
-    sysPs.register_new_param(ptys.NumericParam , "sdr_cf"        ,    88.3e6 , 24e6 , 1766e6 ,    [1e4,1e5,1e6,1e7,1e8,1e2,1e3]  )
+    sysPs.register_new_param(ptys.NumericParam , "sdr_cf"        ,    88.3e6 , 24e6 , 1766e6 ,    [1e4,1e5,1e6,1e7,1e8,1e9,1e2,1e3]  )
     sysPs.register_new_param(ptys.NumericParam , "sdr_fs"        ,    0.25e6 ,    0 ,    2e9 ,     None                          )
     sysPs.register_new_param(ptys.NumericParam , "sdr_dig_bw"    ,     150e3 ,  1e3 ,  250e3 ,    [10e3,100e3,1e3]               )
     sysPs.register_new_param(ptys.FuncParam    , "sdr_dec_fx"    , DECODE_FM ,                                                   )
     sysPs.register_new_param(ptys.NumericParam , "sdr_squelch"   ,       -20 ,  -40 ,      1 ,    [10, 0.001, 0.1, 1]            )
-    sysPs.register_new_param(ptys.NumericParam , "sdr_chunk_sz"  ,     2**17 ,    1 ,   None ,    [1]                            )
+    sysPs.register_new_param(ptys.NumericParam , "sdr_chunk_sz"  ,     2**14 ,    1 ,   None ,    [1]                            )
     sysPs.register_new_param(ptys.NumericParam , "spkr_volume"   ,       0.5 ,    0 ,    100 ,    [10,1]                         )
     sysPs.register_new_param(ptys.NumericParam , "spkr_chunk_sz" ,     2**12 ,    1 ,   None ,    [1]                            )
     sysPs.register_new_param(ptys.NumericParam , "spkr_fs"       ,     44100 ,    1 ,   None ,    [1]                            )

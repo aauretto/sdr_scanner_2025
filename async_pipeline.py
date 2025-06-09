@@ -103,11 +103,11 @@ class AbstractWorker(BasePipelineStage):
                 await self.outbox.put(None)
                 break
             await self.outbox.put(self.process(data))
-            print(f"{self.__class__.__name__}")
-            t = data.meta["timestamp"]
-            time_str = time.strftime("%H:%M:%S", time.localtime(t))
-            ms = int((t % 1) * 1000)
-            print(f"[{self.gid}][{time_str}.{ms:03d}] > {self.__class__.__name__} > {time.time() - start} to process")
+            # print(f"{self.__class__.__name__}")
+            # t = data.meta["timestamp"]
+            # time_str = time.strftime("%H:%M:%S", time.localtime(t))
+            # ms = int((t % 1) * 1000)
+            # print(f"[{self.gid}][{time_str}.{ms:03d}] > {self.__class__.__name__} > {time.time() - start} to process")
 
     @abstractmethod
     def process(self, data):
@@ -130,10 +130,10 @@ class AbstractWindow(BasePipelineStage):
                 await self.outbox.put(None)
                 break
             await self.outbox.put(data)
-            t = data.meta["timestamp"]
-            time_str = time.strftime("%H:%M:%S", time.localtime(t))
-            ms = int((t % 1) * 1000)
-            print(f"[{self.gid}][{time_str}.{ms:03d}] > {self.__class__.__name__} > {time.time() - start} to process")
+            # t = data.meta["timestamp"]
+            # time_str = time.strftime("%H:%M:%S", time.localtime(t))
+            # ms = int((t % 1) * 1000)
+            # print(f"[{self.gid}][{time_str}.{ms:03d}] > {self.__class__.__name__} > {time.time() - start} to process")
 
 
 

@@ -31,12 +31,16 @@ class NumericParam(BaseParam):
     def cycle_step_size(self, dir : StepDir):
         self.stepSizeIdx = (self.stepSizeIdx + dir) % len(self.stepSizes)
 
-    def set(self, val):
-        if self.min <= val <= self.max:
-            super().set(val)
-        
     def step(self, dir : StepDir):
         self.set(self.currVal + self.get_step_size() * dir)
+
+    def set(self, val):
+        if val <= self.min:
+            super().set(self.min)
+        elif val >= self.max:
+            super().set(self.max)
+        else:
+            super().set(val)
 
     def __int__(self):
         with self.monitor:
