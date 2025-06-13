@@ -12,7 +12,7 @@ GPIO.setwarnings(False)
 class ScreenDrawer():
 
     def __init__(self):        
-        self.__FRAME_RATE = 30
+        self.__FRAME_RATE = 16
         self.__SECS_PER_FRAME = 1/self.__FRAME_RATE
         self.__serial = spi(port=0, device=0, gpio_DC=25, gpio_RST=24, bus_speed_hz=8_000_000)
         self.__device = ssd1309(self.__serial, width=128, height=64)
@@ -21,12 +21,9 @@ class ScreenDrawer():
         # Font stuff
         self.__alphaFonts = {}
         self.__numFonts = {}
-        self.load_font(24),
-        self.load_font(16),
-        self.load_font(12),
-        self.load_font(8)
 
-    def load_font(self, pt, isNumber = False):
+
+    def load_font(self, pt, bold = False, isNumber = False):
         if isNumber:
             if pt not in self.__numFonts:
                 # self.__numFonts[pt] = ImageFont.truetype("~/Documents/sdr_scanner_2025/hw_interface/fonts/seven_segment.ttf", pt)
@@ -59,6 +56,27 @@ class ScreenDrawer():
         # Welcome to magic numberville. Putting things in here that look ok in the real world
         self.render_text_and_cursor(meta, draw, (13,36), freqFt, 7, 2, freq, 4, 1)
         draw.text((94, 45), mhz, font = mhzFt, fill="white")
+
+        # Sig Strength
+        self.render_right_justified_text(draw, (123, 5), f"{meta['dB']:.2f}", font=self.load_font(8))
+        # self.render_right_justified_text(draw, (123, 15), "dB", font=self.load_font(8))
+        self.render_right_justified_text(draw, (113, 15), "dB", font=self.load_font(8))
+        draw.line((78, 0, 78, 26), fill="white")
+
+        is_dst = time.localtime().tm_isdst
+        draw.text((9, 5), time.strftime("%H:%M", time.localtime()), font=self.load_font(8), fill="white")
+        draw.text((15, 15), time.tzname[is_dst], font=self.load_font(8), fill="white")
+        draw.line((50, 0, 50, 26), fill="white")
+
+        draw.text((55, 9), "FM", font=self.load_font(10), fill="white")
+
+
+    def render_right_justified_text(self, draw, topRight, text, font):
+        bbox = draw.textbbox((0, 0), text, font=font)
+        tH = bbox[3] - bbox[1]
+        tW = bbox[2] - bbox[0]
+
+        draw.text((topRight[0] - tW, topRight[1]), text, font=font, fill="white")
 
     def render_text_and_cursor(self, meta, draw, startPos, font, charWidth, kerning, text, decimalWid, cursorSpacing):
         self.render_text_monospace(draw, startPos, font, charWidth, kerning, text, decimalWid)
