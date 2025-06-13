@@ -58,7 +58,9 @@ class ScreenDrawer():
         draw.text((94, 45), mhz, font = mhzFt, fill="white")
 
         # Sig Strength
-        self.render_right_justified_text(draw, (123, 5), f"{meta['dB']:.2f}", font=self.load_font(8))
+        dB = meta['dB']
+        sign = "-" if dB < 0 else ""
+        self.render_right_justified_text(draw, (123, 5), f"{sign}{abs(dB):05.2f}", font=self.load_font(8))
         # self.render_right_justified_text(draw, (123, 15), "dB", font=self.load_font(8))
         self.render_right_justified_text(draw, (113, 15), "dB", font=self.load_font(8))
         draw.line((78, 0, 78, 26), fill="white")

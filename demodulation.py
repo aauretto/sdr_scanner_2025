@@ -2,11 +2,7 @@
 Definitions for the demodulaiton functions to be used by the scanner.
 """
 import numpy as np
-
-# Scale factor to do for FM audio since we drift 75kHz in each dir
-# deviation_hz = 75000
-# scaling_factor = Fs / (2 * np.pi * deviation_hz)
-# normalized = phase_diff * scaling_factor
+from enum import Enum, auto
 
 def DECODE_FM(sig):
     """
@@ -17,3 +13,32 @@ def DECODE_FM(sig):
 
 def DECODE_AM(sig):
     return np.abs(sig)
+
+class DemodSchemes(Enum):
+    FM = auto()
+    AM = auto()
+
+class DemodulationManager():
+    """
+    Proxy for a function that demodulates raw RF.
+    Holds a few demodulation schemes allowing us to swap decoding strategies on
+    the fly while keeping calling code unaware of the idea that this isn't actually
+    a function.
+    """
+    def __init__(self):
+        self.__currDecoding = DemodSchemes.FM
+        self.__fxs = {
+            DemodSchemes.FM : DECODE_FM,
+            DemodSchemes.FM : DECODE_AM,
+        }
+    
+    def set_demod_scheme(self, key):
+        if key not in self.__fxs:
+            print(f"Invalid Decoding Scheme {key}. Please use any of {self.__fxs.keys()}")
+        self.__currDecoding = key
+
+    def get_demod_scheme_name(self):
+        return str(self.__currDecoding).split(".")[1]
+
+    def __call__(self, *args, **kwargs):
+        return self.__fxs[self.__currDecoding](*args, **kwargs)

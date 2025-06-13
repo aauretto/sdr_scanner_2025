@@ -62,22 +62,21 @@ def init_params():
     """
     Set up initial parameters for the scanner
     """
-    from demodulation import DECODE_FM
-
+    from demodulation import DemodulationManager as DMgr
     params = sps.SysParams()
 
-    # ========================================================================================================================== #
-    #                          Type of param      Name              InitVal    Min      Max      StepSizes                       #
-    # ========================================================================================================================== #
-    params.register_new_param(ptys.NumericParam , "sdr_cf"        ,    88.3e6 , 30e6 , 1766e6 ,    [1e4,1e5,1e6,1e7,1e8,1e9,1e2,1e3]  )
-    params.register_new_param(ptys.NumericParam , "sdr_fs"        ,    0.25e6 ,    0 ,    2e9 ,     None                          )
-    params.register_new_param(ptys.NumericParam , "sdr_dig_bw"    ,     150e3 ,  1e3 ,  250e3 ,    [10e3,100e3,1e3]               )
-    params.register_new_param(ptys.FuncParam    , "sdr_dec_fx"    , DECODE_FM ,                                                   )
-    params.register_new_param(ptys.NumericParam , "sdr_squelch"   ,       -20 ,  -40 ,      1 ,    [10, 0.001, 0.1, 1]            )
-    params.register_new_param(ptys.NumericParam , "sdr_chunk_sz"  ,     2**14 ,    1 ,   None ,    [1]                            )
-    params.register_new_param(ptys.NumericParam , "spkr_volume"   ,       0.5 ,    0 ,    100 ,    [10,1]                         )
-    params.register_new_param(ptys.NumericParam , "spkr_chunk_sz" ,     2**12 ,    1 ,   None ,    [1]                            )
-    params.register_new_param(ptys.NumericParam , "spkr_fs"       ,     44100 ,    1 ,   None ,    [1]                            )
+    # ========================================================================================================================= #
+    #                          Type of param      Name              InitVal    Min      Max    StepSizes                        #
+    # ========================================================================================================================= #
+    params.register_new_param(ptys.NumericParam , "sdr_cf"        ,  88.3e6 , 30e6 , 1766e6 , [1e4,1e5,1e6,1e7,1e8,1e9,1e2,1e3] )
+    params.register_new_param(ptys.NumericParam , "sdr_fs"        ,  0.25e6 ,    0 ,    2e9 ,  None                             )
+    params.register_new_param(ptys.NumericParam , "sdr_dig_bw"    ,   150e3 ,  1e3 ,  250e3 , [10e3,100e3,1e3]                  )
+    params.register_new_param(ptys.FuncParam    , "sdr_dec_fx"    ,  DMgr() ,                                                   )
+    params.register_new_param(ptys.NumericParam , "sdr_squelch"   ,     -20 ,  -40 ,      1 , [10, 0.001, 0.1, 1]               )
+    params.register_new_param(ptys.NumericParam , "sdr_chunk_sz"  ,   2**14 ,    1 ,   None , [1]                               )
+    params.register_new_param(ptys.NumericParam , "spkr_volume"   ,     0.5 ,    0 ,    100 , [10,1]                            )
+    params.register_new_param(ptys.NumericParam , "spkr_chunk_sz" ,   2**12 ,    1 ,   None , [1]                               )
+    params.register_new_param(ptys.NumericParam , "spkr_fs"       ,   44100 ,    1 ,   None , [1]                               )
 
     return params
 
@@ -102,10 +101,10 @@ def setup_sdr(params):
     params.register_new_param(ptys.ObjParam, "sdr", sdr)
     return sdr
 
-from system_pipeline_stages import ProvideRawRF, Filter, Downsample, RechunkArray, ReshapeArray, Endpoint, DemodulateRF, CalcDecibels
-from async_pipeline         import FxApplyWorker, FxApplyWindow
 def pipeline_worker(toSpeakers, toHW, params):
     # Create loop for this thread
+    from system_pipeline_stages import ProvideRawRF, Filter, Downsample, RechunkArray, ReshapeArray, Endpoint, DemodulateRF, CalcDecibels, ApplySquelch, AdjustVolume
+    from async_pipeline         import FxApplyWindow
     loop = asyncio.new_event_loop()
     asyncio.set_event_loop(loop)
     
@@ -116,7 +115,11 @@ def pipeline_worker(toSpeakers, toHW, params):
          DemodulateRF(params["sdr_dec_fx"]),
          Filter(params["sdr_lp_num"], params["sdr_lp_denom"]),
          Downsample(params["sdr_fs"], params["spkr_fs"]),
+         ApplySquelch(params["sdr_squelch"]),
          RechunkArray(params["spkr_chunk_sz"]),
+         AdjustVolume(params["spkr_volume"]),
+
+         # Data is audio ready for speakers
          ReshapeArray((-1,1)),
          FxApplyWindow(lambda d : toSpeakers.put(d.data)),
          FxApplyWindow(lambda d : toHW.put(d.meta)),

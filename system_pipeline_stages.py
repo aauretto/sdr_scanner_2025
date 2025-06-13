@@ -116,73 +116,23 @@ class ReshapeArray(AbstractWorker):
         pdp.data = data.reshape(*self.newShape)
         return pdp
     
-class Volume(AbstractWorker):
-    """
-    TODO: figure out exactly how volume control should behave
-    """
-    def __init__(self, ref):
-        pass
+class AdjustVolume(AbstractWindow):
+    def __init__(self, target):
+        super().__init__()   
+        self.__vol = target
+
+    def inspect(self, pdp):
+        pdp.data = pdp.data * self.__vol / pdp.data.max() / 100
 
 class CalcDecibels(AbstractWindow):
     def inspect(self, pdp):
         pdp.meta["dB"] = np.mean(20 * np.log10(np.abs(pdp.data)))
 
-
-
-
-
-# # Old testing code. Relevant testing to be changed in main from now on
-# def __testing():
-#     from scipy.signal import butter
-#     from rtlsdr import RtlSdr
-#     from speaker_manager import SpeakerManager
-#     from queue import Queue
-#     from threading import Thread
-#     from demodulation import DECODE_FM
-#     sdr = RtlSdr()
-
-#     # Configure SDR
-#     sdr.sample_rate = 0.25e6   # Hz
-#     sdr.center_freq = 88.3e6   # Hz
-#     sdr.freq_correction = 60   # PPM
-#     sdr.gain = 'auto'
-
-#     radioFS = sdr.get_sample_rate()
-
-#     audioFS = 44100
-#     audioBlockSize = 2**12
-
-#     q = Queue()
-
-#     def worker(q, sdr):
-#         # Create loop for this thread
-#         loop = asyncio.new_event_loop()
-#         asyncio.set_event_loop(loop)
-
-#         b, a = butter(5, 100e3 / (0.5 * sdr.get_sample_rate()), btype='low', analog=False)
-
-#         # Set up and launch pipeline
-#         pipeline = AsyncPipeline(
-#             [ProvideRawRF(sdr, 2**18), # Make this an sdrSpec class or smth
-#              FxApplyWorker(DECODE_FM),
-#              Filter(b, a),
-#              Downsample(radioFS, audioFS),
-#              RechunkArray(audioBlockSize),
-#              ReshapeArray((-1,1)),
-#              FxApplyWindow(lambda d : q.put(d)), 
-#              Endpoint()]) 
-#         pipeline.run_pipeline()
-        
-#         loop.close()
-#     rx = Thread(target=worker, args = (q, sdr))
-
-#     sm = SpeakerManager(blockSize=audioBlockSize, sampRate=audioFS)
-#     sm.set_source(q)
-#     sm.init_stream()
-#     sm.start()
-
-#     rx.start()
-#     rx.join()
-
-# if __name__ == "__main__":
-#     __testing()
+class ApplySquelch(AbstractWindow):
+    def __init__(self, squelch):
+        super().__init__()
+        self.__squelch = squelch
+    
+    def inspect(self, pdp):
+        if self.__squelch >= pdp.meta["dB"]:
+            pdp.data = np.zeros(shape=pdp.data.shape)

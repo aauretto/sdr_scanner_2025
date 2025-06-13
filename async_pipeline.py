@@ -52,7 +52,6 @@ class AsyncPipeline():
         prevStage, *rest = self.stages
         tasks = [prevStage.execute()]
         for stage in rest:
-            print(f"Linking {prevStage}'s outbox to {stage}'s inbox")
             stage.register_prev_stage(prevStage)
             prevStage = stage
             tasks.append(stage.execute())
