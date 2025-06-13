@@ -1,3 +1,10 @@
+"""
+Class definitions for rf decoding pipeline
+
+All stages are assuming that data looks like a PipelineDatPackage object
+
+"""
+
 import asyncio
 from async_pipeline import AsyncPipeline, BasePipelineStage, AbstractWorker, AbstractWindow, Endpoint, FxApplyWindow, FxApplyWorker
 import numpy as np
@@ -9,6 +16,17 @@ class PipelineDataPackage():
     def __init__(self, data = None, meta = {}):
         self.data = data
         self.meta = meta
+
+class DemodulateRF(AbstractWindow):
+    """
+    Perform some demodulation based on function passed to constructor
+    """
+    def __init__(self, fx):
+        super().__init__()
+        self.fx = fx
+
+    def inspect(self, pdp):
+        pdp.data = self.fx(pdp.data)
 
 from scipy.signal import resample
 class Downsample(AbstractWorker):
@@ -106,8 +124,8 @@ class Volume(AbstractWorker):
         pass
 
 class CalcDecibels(AbstractWindow):
-    def inspect(self, data):
-        print(np.mean(20 * np.log10(np.abs(data))))
+    def inspect(self, pdp):
+        pdp.meta["dB"] = np.mean(20 * np.log10(np.abs(pdp.data)))
 
 
 

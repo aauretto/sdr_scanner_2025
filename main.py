@@ -21,11 +21,12 @@ def main():
     hwManager = start_gpio_hw(params)
 
     # Connect decoding pipeline to speakers
-    bridgeFromPipeline = Queue()
-    pipelineThread = Thread(target=pipeline_worker, args = (bridgeFromPipeline, params), daemon=True)
+    bridgeToSpeakers = Queue()
+    bridgeToHW       = hwManager.get_inbox()
+    pipelineThread = Thread(target=pipeline_worker, args = (bridgeToSpeakers, bridgeToHW, params), daemon=True)
 
     sm = SpeakerManager(blockSize=params["spkr_chunk_sz"], sampRate=params["spkr_fs"])
-    sm.set_source(bridgeFromPipeline)
+    sm.set_source(bridgeToSpeakers)
     sm.init_stream()
     sm.start()
 
@@ -101,40 +102,26 @@ def setup_sdr(params):
     params.register_new_param(ptys.ObjParam, "sdr", sdr)
     return sdr
 
-from system_pipeline_stages import ProvideRawRF, Filter, Downsample, RechunkArray, ReshapeArray, Endpoint, CalcDecibels
+from system_pipeline_stages import ProvideRawRF, Filter, Downsample, RechunkArray, ReshapeArray, Endpoint, DemodulateRF, CalcDecibels
 from async_pipeline         import FxApplyWorker, FxApplyWindow
-def pipeline_worker(bridge, params):
+def pipeline_worker(toSpeakers, toHW, params):
     # Create loop for this thread
     loop = asyncio.new_event_loop()
     asyncio.set_event_loop(loop)
     
-    import time
-    clock = time.time()
-    def tick():
-        nonlocal clock
-        tmp = time.time()
-        print(f"{tmp - clock}s")
-        clock = tmp
-
-    def demod(pdp):
-        pdp.data = params["sdr_dec_fx"](pdp.data)
-
     # Set up and launch pipeline
     pipeline = AsyncPipeline(
         [ProvideRawRF(params["sdr"], params["sdr_chunk_sz"]),
-         FxApplyWindow(demod),
+         CalcDecibels(),
+         DemodulateRF(params["sdr_dec_fx"]),
          Filter(params["sdr_lp_num"], params["sdr_lp_denom"]),
          Downsample(params["sdr_fs"], params["spkr_fs"]),
          RechunkArray(params["spkr_chunk_sz"]),
          ReshapeArray((-1,1)),
-         FxApplyWindow(lambda d : bridge.put(d.data)),
-        #  FxApplyWindow(lambda d : tick()),
-         Endpoint()]) 
+         FxApplyWindow(lambda d : toSpeakers.put(d.data)),
+         FxApplyWindow(lambda d : toHW.put(d.meta)),
+         Endpoint()])
     
-    with open("key.out", "w") as f:
-        for e in pipeline.stages:
-            print(f"{e.gid} > {e.__class__.__name__}", file=f)
-            
     pipeline.run_pipeline()
 
     loop.close()

@@ -42,6 +42,9 @@ class HWMenuManager():
         }
 
     def __meta_rxer(self):
+        """
+        Pulls data from inbox and adds it to internal metadata dict
+        """
         while not self.__stopSig.is_set():
             meta = self.__inbox.get()
             if meta:
@@ -144,3 +147,6 @@ class HWMenuManager():
         self.__stopSig.set()
         print("[HWManager] > Stopping")
         self.__proc.join()
+
+    def get_inbox(self):
+        return self.__inbox
