@@ -21,12 +21,13 @@ class DemodulateRF(AbstractWindow):
     """
     Perform some demodulation based on function passed to constructor
     """
-    def __init__(self, fx):
+    def __init__(self, dmgr):
         super().__init__()
-        self.fx = fx
+        self.dmgr = dmgr
 
     def inspect(self, pdp):
-        pdp.data = self.fx(pdp.data)
+        pdp.data = self.dmgr(pdp.data)
+        pdp.meta["demod"] = self.dmgr.get().get_demod_scheme_name() # So much for being agnostic of whats in here
 
 from scipy.signal import resample
 class Downsample(AbstractWorker):

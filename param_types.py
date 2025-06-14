@@ -6,7 +6,7 @@ class BaseParam():
     """
     def __init__(self, startVal):
         self.currVal = startVal
-        self.monitor  = Lock()
+        self.monitor = Lock()
     def set(self, val):
         with self.monitor:
             self.currVal = val
