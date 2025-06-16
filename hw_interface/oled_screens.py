@@ -59,7 +59,7 @@ def render_text_and_cursor(meta, draw, startPos, font, charWidth, kerning, text,
     tH = bbox[3] - bbox[1]
 
     # Draw Cursor:
-    x = startPos[0] - 1 + meta["cursorPos"] * (charWidth + kerning) + (meta["cursorPos"] >= 4) * (decimalWid + kerning) 
+    x = startPos[0] - 1 + meta["FTUNE_cursorPos"] * (charWidth + kerning) + (meta["FTUNE_cursorPos"] >= 4) * (decimalWid + kerning) 
     y = startPos[1] + tH + cursorSpacing + 4 # More magic numbers to make the math work
     draw.line((x, y, x + charWidth - kerning // 2, y), fill="white") 
 

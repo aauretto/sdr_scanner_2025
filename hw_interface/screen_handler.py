@@ -28,8 +28,9 @@ class ScreenDrawer():
         with canvas(self.__device) as draw:
             draw.rectangle((0, 0, 127, 63), outline=1, fill=0)
             
+            # draw_tuning_window(draw, meta)
             if meta["screen"] == Screens.FREQTUNE:
-                draw_tuning_window(draw, {**meta[Screens.FREQTUNE], "dB" : meta["dB"]})
+                draw_tuning_window(draw, meta)
             elif meta["screen"] == Screens.SETTINGS:
                 self.__settingsMenu.draw(draw)
 
