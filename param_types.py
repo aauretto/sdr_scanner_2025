@@ -95,6 +95,12 @@ class FuncParam(BaseParam):
     def __call__(self, *args, **kwargs):
         return self.get()(*args, **kwargs)
 
+class EnumParam(BaseParam):
+    def __eq__(self, other):
+        return self.get() == other
+    def __ne__(self, other):
+        return not (self.get() == other)
+
 class ObjParam(BaseParam):
     def __getattr__(self, name):
         """

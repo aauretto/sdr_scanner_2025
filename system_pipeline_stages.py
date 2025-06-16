@@ -123,7 +123,8 @@ class AdjustVolume(AbstractWindow):
         self.__vol = target
 
     def inspect(self, pdp):
-        pdp.data = pdp.data * self.__vol / pdp.data.max() / 100
+        if (maxVal := pdp.data.max()) != 0:
+            pdp.data = pdp.data * self.__vol / maxVal / 100
 
 class CalcDecibels(AbstractWindow):
     def inspect(self, pdp):

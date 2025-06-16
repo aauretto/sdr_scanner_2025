@@ -9,8 +9,3 @@ class BtnEvents(Enum):
     M1    = auto()
     M2    = auto()
     M3    = auto()
-
-class Menus(Enum):
-    FREQTUNE = auto()
-    SETTINGS = auto()
-    VOLUME   = auto()
