@@ -19,20 +19,14 @@ class ScreenDrawer():
         self.__device = ssd1309(self.__serial, width=128, height=64)
         self.__running = True
 
-        self.__settingsMenu = Menu("Settings")
-        self.__settingsMenu.register_option(MenuOption("Op1", lambda : print("Option 1")))
-        self.__settingsMenu.register_option(MenuOption("Op2", lambda : print("Option 2")))
-
-    
     def draw_frame(self, meta):
         with canvas(self.__device) as draw:
             draw.rectangle((0, 0, 127, 63), outline=1, fill=0)
             
-            # draw_tuning_window(draw, meta)
             if meta["screen"] == Screens.FREQTUNE:
                 draw_tuning_window(draw, meta)
             elif meta["screen"] == Screens.SETTINGS:
-                self.__settingsMenu.draw(draw)
+                meta["settingsMenu"].draw(draw)
 
             time.sleep(self.__SECS_PER_FRAME)
 

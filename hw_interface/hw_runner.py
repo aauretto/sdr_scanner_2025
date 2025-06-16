@@ -10,6 +10,7 @@ import RPi.GPIO as GPIO
 import param_types as ptys
 from hw_interface import hw_enums
 from hw_interface.oled_screens import Screens
+from hw_interface.oled_menu import Menu, MenuOption
 
 class HWMenuManager():
 
@@ -21,9 +22,14 @@ class HWMenuManager():
         self.__params          = params
         self.__btnQueue        = mp.Queue()
         self.__currScreen      = Screens.FREQTUNE
+        
+        self.__settingsMenu = Menu("Settings")
+        self.__settingsMenu.register_option(MenuOption("Op1", "HI"))
+        self.__settingsMenu.register_option(MenuOption("Op2", "BYE"))
 
         # Initial states for screens
         self.__latestMeta = {
+            "settingsMenu"    : self.__settingsMenu,
             "screen"          : self.__currScreen,
             "FTUNE_cursorPos" : 5,
             "cf"              : params["sdr_cf"].get(),
@@ -115,6 +121,26 @@ class HWMenuManager():
         elif evt == hw_enums.BtnEvents.M1:
             self.__currScreen = Screens.SETTINGS
             self.__latestMeta["screen"] = Screens.SETTINGS
+        elif evt == hw_enums.BtnEvents.M2:
+            pass
+        elif evt == hw_enums.BtnEvents.M3:
+            pass
+        # Send updated state of system params over to screen drawer
+        self.__screenDrawInbox.put(self.__latestMeta)
+        
+    def handle_settings(self, evt):
+        if evt == hw_enums.BtnEvents.UP:
+            pass
+        elif evt == hw_enums.BtnEvents.DOWN:
+            pass
+        elif evt == hw_enums.BtnEvents.LEFT:
+            pass
+        elif evt == hw_enums.BtnEvents.RIGHT:
+            pass
+        elif evt == hw_enums.BtnEvents.OK:
+            pass
+        elif evt == hw_enums.BtnEvents.M1:
+            pass
         elif evt == hw_enums.BtnEvents.M2:
             pass
         elif evt == hw_enums.BtnEvents.M3:
