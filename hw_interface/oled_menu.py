@@ -33,7 +33,7 @@ class Menu():
         self.__options.append(MenuOption)
 
     def scroll_down(self):
-        if self.__selected < len(self.__options):
+        if self.__selected < len(self.__options) - 1:
             self.__selected += 1
             # Check if we need to scroll entire menu
             if self.__selected - self.__topDisplayed > self.__opsPerScreen - 1:
@@ -45,7 +45,6 @@ class Menu():
             if self.__selected < self.__topDisplayed:
                 self.__topDisplayed -= 1
     def select(self):
-        print(f"{self.__topDisplayed=} / {self.__selected=}")
         return self.__options[self.__selected].action
     
     

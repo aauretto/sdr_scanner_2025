@@ -1,8 +1,16 @@
 """
-Runs all hw brokering on another process
+File containing classes that manage hardware.
+
+Two classes are in this file:
+- HWScreenInterface
+    A wrapper that launches a process responsible for managing the screen and listening for button presses.
+    Actual drawing logic found in screen_handler.py
+- HWMenuManager
+    A wrapper that will listen to the button events sent by HWScreenInterface and alter state according to
+    those presses. 
 """
 
-from hw_interface.button_handler import ButtonHandler, PRESS_TYPE
+from hw_interface.button_handler import ButtonHandler
 from hw_interface.screen_handler import ScreenDrawer
 import multiprocessing as mp
 from threading import Thread
@@ -13,40 +21,19 @@ from hw_interface.oled_screens import Screens
 from hw_interface.oled_menu import Menu, MenuOption
 
 def printaction():
-    print("Hello!")
+    print("Hello!")    
 
-class HWMenuManager():
-
-    def __init__(self, inbox, params):
-        self.__stopSig         = mp.Event()
-        self.__proc            = None
-        self.__btnEvtPairs     = []
+class HWScreenInterface():
+    def __init__(self, inbox, buttonQ, meta, btnPairs, stopSig):
+        """
+        TODO explain this stuff
+        Manager that runs a process that handles drawing screen and listens to button presses
+        """
         self.__screenDrawInbox = inbox
-        self.__params          = params
-        self.__btnQueue        = mp.Queue()
-        self.__currScreen      = Screens.FREQTUNE
-        
-        self.__settingsMenu = Menu("Settings")
-        self.__settingsMenu.register_option(MenuOption("Op1", printaction))
-        self.__settingsMenu.register_option(MenuOption("Op2", printaction))
-        self.__settingsMenu.register_option(MenuOption("Op3", printaction))
-        self.__settingsMenu.register_option(MenuOption("Op4", printaction))
-        self.__settingsMenu.register_option(MenuOption("Op5", printaction))
-        self.__settingsMenu.register_option(MenuOption("Op6", printaction))
-
-        # Subset of fields in this class that we synch between this proces and
-        # the process that draws to the screen
-        self.__latestMeta = {
-            "settingsMenu"    : self.__settingsMenu,
-            "screen"          : self.__currScreen,
-            "FTUNE_cursorPos" : 5,
-            "cf"              : params["sdr_cf"].get(),
-            "bw"              : params["sdr_dig_bw"].get(),
-            "squelch"         : params["sdr_squelch"].get(),
-            "vol"             : params["spkr_volume"].get(),
-            "timestamp"       : 0,
-            "dB"              : 0,
-        }
+        self.__btnQueue        = buttonQ
+        self.__latestMeta      = meta
+        self.__stopSig         = stopSig
+        self.__btnEvtPairs     = btnPairs
 
     def __meta_rxer(self):
         """
@@ -99,6 +86,45 @@ class HWMenuManager():
         mThread.join()
         GPIO.cleanup()
 
+    def start(self):
+
+        self.__proc = mp.Process(target=self.__worker_process, args=(), daemon=True)
+        self.__proc.start()
+
+
+
+class HWMenuManager():
+    def __init__(self, inbox, params):
+        self.__stopSig         = mp.Event()
+        self.__proc            = None
+        self.__btnEvtPairs     = []
+        self.__screenDrawInbox = inbox
+        self.__params          = params
+        self.__btnQueue        = mp.Queue()
+        self.__currScreen      = Screens.FREQTUNE
+        
+        self.__settingsMenu = Menu("Settings")
+        self.__settingsMenu.register_option(MenuOption("Op1", printaction))
+        self.__settingsMenu.register_option(MenuOption("Op2", printaction))
+        self.__settingsMenu.register_option(MenuOption("Op3", printaction))
+        self.__settingsMenu.register_option(MenuOption("Op4", printaction))
+        self.__settingsMenu.register_option(MenuOption("Op5", printaction))
+        self.__settingsMenu.register_option(MenuOption("Op6", printaction))
+
+        # Fields that we synch between this process and the process that draws to the screen
+        self.__latestMeta = {
+            "settingsMenu"    : self.__settingsMenu,
+            "screen"          : self.__currScreen,
+            "FTUNE_cursorPos" : 5,
+            "cf"              : params["sdr_cf"].get(),
+            "bw"              : params["sdr_dig_bw"].get(),
+            "squelch"         : params["sdr_squelch"].get(),
+            "vol"             : params["spkr_volume"].get(),
+            "timestamp"       : 0,
+            "dB"              : 0,
+        }
+
+    
     def handle_event(self, evt):
         if self.__currScreen == Screens.FREQTUNE:
             self.handle_freq_tune(evt)
@@ -167,8 +193,7 @@ class HWMenuManager():
     def start(self):
         self.__stopSig = mp.Event()
 
-        self.__proc = mp.Process(target=self.__worker_process, args=(), daemon=True)
-        self.__proc.start()
+        HWScreenInterface(self.__screenDrawInbox, self.__btnQueue, self.__latestMeta, self.__btnEvtPairs, self.__stopSig).start()
 
         while not self.__stopSig.is_set():
             evt = self.__btnQueue.get()
