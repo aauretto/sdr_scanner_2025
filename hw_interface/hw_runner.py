@@ -12,6 +12,9 @@ from hw_interface import hw_enums
 from hw_interface.oled_screens import Screens
 from hw_interface.oled_menu import Menu, MenuOption
 
+def printaction():
+    print("Hello!")
+
 class HWMenuManager():
 
     def __init__(self, inbox, params):
@@ -24,10 +27,15 @@ class HWMenuManager():
         self.__currScreen      = Screens.FREQTUNE
         
         self.__settingsMenu = Menu("Settings")
-        self.__settingsMenu.register_option(MenuOption("Op1", "HI"))
-        self.__settingsMenu.register_option(MenuOption("Op2", "BYE"))
+        self.__settingsMenu.register_option(MenuOption("Op1", printaction))
+        self.__settingsMenu.register_option(MenuOption("Op2", printaction))
+        self.__settingsMenu.register_option(MenuOption("Op3", printaction))
+        self.__settingsMenu.register_option(MenuOption("Op4", printaction))
+        self.__settingsMenu.register_option(MenuOption("Op5", printaction))
+        self.__settingsMenu.register_option(MenuOption("Op6", printaction))
 
-        # Initial states for screens
+        # Subset of fields in this class that we synch between this proces and
+        # the process that draws to the screen
         self.__latestMeta = {
             "settingsMenu"    : self.__settingsMenu,
             "screen"          : self.__currScreen,
@@ -130,19 +138,20 @@ class HWMenuManager():
         
     def handle_settings(self, evt):
         if evt == hw_enums.BtnEvents.UP:
-            pass
+            self.__settingsMenu.scroll_up()
         elif evt == hw_enums.BtnEvents.DOWN:
-            pass
+            self.__settingsMenu.scroll_down()
         elif evt == hw_enums.BtnEvents.LEFT:
             pass
         elif evt == hw_enums.BtnEvents.RIGHT:
-            pass
+            self.__settingsMenu.select()()
         elif evt == hw_enums.BtnEvents.OK:
             pass
         elif evt == hw_enums.BtnEvents.M1:
             pass
         elif evt == hw_enums.BtnEvents.M2:
-            pass
+            self.__currScreen = Screens.FREQTUNE
+            self.__latestMeta["screen"] = Screens.FREQTUNE
         elif evt == hw_enums.BtnEvents.M3:
             pass
         # Send updated state of system params over to screen drawer
