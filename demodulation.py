@@ -26,10 +26,10 @@ class DemodulationManager():
     a function.
     """
     def __init__(self):
-        self.__currDecoding = DemodSchemes.FM
+        self.__currDecoding = DemodSchemes.AM
         self.__fxs = {
             DemodSchemes.FM : DECODE_FM,
-            DemodSchemes.FM : DECODE_AM,
+            DemodSchemes.AM : DECODE_AM,
         }
     
     def set_demod_scheme(self, key):

@@ -18,7 +18,7 @@ def main():
     params = init_params()
     setup_sdr(params)
     setup_lowpass(params)
-    hwManager = start_gpio_hw(params)
+    hwManager, stopSig = start_gpio_hw(params)
 
     # Connect decoding pipeline to speakers
     bridgeToSpeakers = Queue()
@@ -31,7 +31,10 @@ def main():
     sm.start()
 
     pipelineThread.start() # Will go forever unless error encountered.
+
+    # Clean up
     pipelineThread.join()
+    stopSig.set()
     hwManager.stop()
     sm.stop()
 
@@ -51,12 +54,15 @@ def start_gpio_hw(params):
             ]
 
     bridgeToHW = mp.Queue() # Gets meta from pipeline over to screen
-    hwManager =  HWMenuManager(bridgeToHW, params)
+    hwManager  = HWMenuManager(bridgeToHW, params)
+    stopSig    = mp.Event()
+
     def hw_worker():
         hwManager.register_btns(btnCfg)
-        hwManager.start()
+        hwManager.run_until_sig(stopSig)
     Thread(target=hw_worker, args=(), daemon=True).start()
-    return hwManager
+    
+    return hwManager, stopSig
     
 def init_params():
     """
@@ -69,11 +75,11 @@ def init_params():
     # ========================================================================================================================= #
     #                          Type of param      Name              InitVal    Min      Max    StepSizes                        #
     # ========================================================================================================================= #
-    params.register_new_param(ptys.NumericParam , "sdr_cf"        ,  88.3e6 , 30e6 , 1766e6 , [1e4,1e5,1e6,1e7,1e8,1e9,1e2,1e3] )
+    params.register_new_param(ptys.NumericParam , "sdr_cf"        ,  133.2e6 , 30e6 , 1766e6 , [1e4,1e5,1e6,1e7,1e8,1e9,1e2,1e3] )
     params.register_new_param(ptys.NumericParam , "sdr_fs"        ,  0.25e6 ,    0 ,    2e9 ,  None                             )
     params.register_new_param(ptys.NumericParam , "sdr_dig_bw"    ,   150e3 ,  1e3 ,  250e3 , [10e3,100e3,1e3]                  )
     params.register_new_param(ptys.FuncParam    , "sdr_dec_fx"    ,  DMgr() ,                                                   )
-    params.register_new_param(ptys.NumericParam , "sdr_squelch"   ,     -20 ,  -40 ,      1 , [10, 0.001, 0.1, 1]               )
+    params.register_new_param(ptys.NumericParam , "sdr_squelch"   ,     -20 ,  -40 ,      2 , [10, 0.1, 1]                      )
     params.register_new_param(ptys.NumericParam , "sdr_chunk_sz"  ,   2**14 ,    1 ,   None , [1]                               )
     params.register_new_param(ptys.NumericParam , "spkr_volume"   ,     0.5 ,    0 ,    100 , [10,1]                            )
     params.register_new_param(ptys.NumericParam , "spkr_chunk_sz" ,   2**12 ,    1 ,   None , [1]                               )

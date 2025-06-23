@@ -47,7 +47,6 @@ class Menu():
     def select(self):
         return self.__options[self.__selected].action
     
-    
     def draw(self, draw):
         # Draw title
         draw.line((0, 20, 127, 20), fill="white")
