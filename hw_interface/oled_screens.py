@@ -26,7 +26,7 @@ def draw_tuning_window(draw, meta):
     mhzFt  = _FONT_MANAGER.load_font(8)
 
     # Welcome to magic numberville. Putting things in here that look ok in the real world
-    render_text_and_cursor(meta, draw, (13,36), freqFt, 7, 2, freq, 4, 1)
+    render_text_and_cursor(draw, (13,36), freqFt, 7, 2, freq, 4, 2, 1, meta["FTUNE_cursorPos"])
     draw.text((94, 45), mhz, font = mhzFt, fill="white")
 
     # Sig Strength
@@ -80,10 +80,13 @@ def draw_squelch_window(draw, meta):
     draw.rectangle((0, 45, 50, 64), outline="white")
     draw.rectangle((78, 45, 128, 64), outline="white")
     draw.text((5,51),f"{dBSign}{abs(dB):05.2f}", fill="white", font=_FONT_MANAGER.load_font(8))
-    render_right_justified_text(draw, (123,51),f"{sqlSign}{abs(squelch):05.2f}", font=_FONT_MANAGER.load_font(8))
+    # render_text_and_cursor(draw, (81, 51), _FONT_MANAGER.load_font(8), 6, 2, f"{sqlSign}{abs(squelch):05.2f}", None, None, 2, meta["SQUELCH_cursorPos"])
+    # render_right_justified_text(draw, (123,51), f"{sqlSign}{abs(squelch):05.2f}", font=_FONT_MANAGER.load_font(8))
+
+    cursorPos = meta["SQUELCH_cursorPos"] + 1 + (meta["SQUELCH_cursorPos"] > 1)
+    draw_text_with_inverted_char(draw, (81, 51), f"{sqlSign}{abs(squelch):05.2f}", cursorPos, _FONT_MANAGER.load_font(8))
 
     # Draw current squelch indicator
-    
     chevXpos = SQUELCH_BAR_PAD + PX_PER_DB * (squelch - SQUELCH_MIN) - 3
     # chevXpos = SQUELCH_BAR_PAD + squelchMeterLen - 3
     chevYpos = SQUELCH_BAR_VPOS + 3
@@ -95,9 +98,32 @@ def draw_squelch_window(draw, meta):
                   fill='white')
 
 
+
 # =============================================================================
 # Utility Functions
 # =============================================================================
+
+def draw_text_with_inverted_char(draw, position, text, index, font):
+    x, y = position
+    for i, char in enumerate(text):
+        # Measure width of character
+        bbox = draw.textbbox((x, y), char, font=font)
+        char_width = bbox[2] - bbox[0]
+        char_height = bbox[3] - bbox[1]
+        # char_width, char_height = draw.textsize(char, font=font)
+        
+        # Draw background
+        if i == index:
+            bg_color = "white"
+            fg_color = "black"
+        else:
+            bg_color = "black"
+            fg_color = "white"
+        
+        draw.rectangle([x, y, x + char_width, y + char_height], fill=bg_color)
+        draw.text((x, y), char, font=font, fill=fg_color)
+        x += char_width
+
 def render_right_justified_text(draw, topRight, text, font, fill="white"):
     bbox = draw.textbbox((0, 0), text, font=font)
     tH = bbox[3] - bbox[1]
@@ -105,17 +131,22 @@ def render_right_justified_text(draw, topRight, text, font, fill="white"):
 
     draw.text((topRight[0] - tW, topRight[1]), text, font=font, fill=fill)
 
-def render_text_and_cursor(meta, draw, startPos, font, charWidth, kerning, text, decimalWid, cursorSpacing):
-    render_text_monospace(draw, startPos, font, charWidth, kerning, text, decimalWid)
+def render_text_and_cursor(draw, startPos, font, charWidth, kerning, text, decimalWid, decSz, cursorSpacing, cursorPos):
+    render_text_monospace(draw, startPos, font, charWidth, kerning, text, decimalWid, decSz)
     bbox = draw.textbbox((0, 0), text, font=font)
     tH = bbox[3] - bbox[1]
 
     # Draw Cursor:
-    x = startPos[0] - 1 + meta["FTUNE_cursorPos"] * (charWidth + kerning) + (meta["FTUNE_cursorPos"] >= 4) * (decimalWid + kerning) 
+    if decimalWid != None and decSz != None:
+        numdecs = sum(list(map(lambda c : c == ".", text))[0:cursorPos+1])
+        x = startPos[0] - 1 + cursorPos * (charWidth + kerning) + numdecs * (decimalWid + kerning) 
+    else:
+        x = startPos[0] - 1 + cursorPos * (charWidth + kerning)
+
     y = startPos[1] + tH + cursorSpacing + 4 # More magic numbers to make the math work
     draw.line((x, y, x + charWidth - kerning // 2, y), fill="white") 
 
-def render_text_monospace(draw, startPos, font, charWidth, kerning, text, decimalWid):
+def render_text_monospace(draw, startPos, font, charWidth, kerning, text, decimalWid = None, decSz = None):
     """
     Will render a string as monospace even if supplied font is not monospace. Exception for the '.' char
     which has width decimalWid and is centered.
@@ -124,16 +155,24 @@ def render_text_monospace(draw, startPos, font, charWidth, kerning, text, decima
     x, y = startPos
     frontPad = 0
     bbox = draw.textbbox((0, 0), text, font=font)
+    ascent, descent = font.getmetrics()
+    lineHeight = ascent + descent 
     cH = bbox[3] - bbox[1]
 
     for i, char in enumerate(text):
         
-        if char == ".":
+        if (decimalWid != None and decSz != None) and char == ".":
             # Gross math to make decimal not mono
-            left   = x + frontPad + decimalWid // 2 - 1
+            left   = x + frontPad + decimalWid // 2 - decSz // 2
             top    = y + cH + 1
-            right  = x + frontPad + decimalWid // 2
-            bottom = y + cH + 2
+            right  = x + frontPad + decimalWid // 2 + decSz // 2 - 1
+            bottom = y + cH + decSz // 2 + 1
+
+            if bottom < top:
+                bottom = top
+            if right < left:
+                right = left
+
             draw.rectangle((left, top, right, bottom), fill = "white")
             frontPad += decimalWid + kerning
             continue

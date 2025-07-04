@@ -3,6 +3,8 @@ Definitions for the demodulaiton functions to be used by the scanner.
 """
 import numpy as np
 from enum import Enum, auto
+from scipy.signal import butter
+import param_types as ptys
 
 def DECODE_FM(sig):
     """
@@ -26,7 +28,7 @@ class DemodulationManager():
     a function.
     """
     def __init__(self):
-        self.__currDecoding = DemodSchemes.AM
+        self.__currDecoding = DemodSchemes.FM
         self.__fxs = {
             DemodSchemes.FM : DECODE_FM,
             DemodSchemes.AM : DECODE_AM,
@@ -42,3 +44,7 @@ class DemodulationManager():
 
     def __call__(self, *args, **kwargs):
         return self.__fxs[self.__currDecoding](*args, **kwargs)
+    
+    def create_filter(self, bw, fs):
+        fmLpNum, fmLpDenom = butter(5, (bw / 2) / (0.5 * fs), btype='low', analog=False)
+        return (fmLpNum, fmLpDenom)

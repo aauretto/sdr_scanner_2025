@@ -17,13 +17,12 @@ def main():
     # initialize stuff
     params = init_params()
     setup_sdr(params)
-    setup_lowpass(params)
     hwManager, stopSig = start_gpio_hw(params)
 
     # Connect decoding pipeline to speakers
     bridgeToSpeakers = Queue()
     bridgeToHW       = hwManager.get_inbox()
-    pipelineThread = Thread(target=pipeline_worker, args = (bridgeToSpeakers, bridgeToHW, params), daemon=True)
+    pipelineThread   = Thread(target=pipeline_worker, args = (bridgeToSpeakers, bridgeToHW, params), daemon=True)
 
     sm = SpeakerManager(blockSize=params["spkr_chunk_sz"], sampRate=params["spkr_fs"])
     sm.set_source(bridgeToSpeakers)
@@ -47,8 +46,8 @@ def start_gpio_hw(params):
             (27  ,  BtnEvents.M2    , PRESS_TYPE.DOWN) ,
             (22  ,  BtnEvents.M1    , PRESS_TYPE.DOWN) ,
             (5   ,  BtnEvents.OK    , PRESS_TYPE.DOWN) ,
-            (6   ,  BtnEvents.RIGHT , PRESS_TYPE.DOWN) ,
-            (13  ,  BtnEvents.LEFT  , PRESS_TYPE.DOWN) ,
+            (6   ,  BtnEvents.RIGHT , PRESS_TYPE.CASCADE) ,
+            (13  ,  BtnEvents.LEFT  , PRESS_TYPE.CASCADE) ,
             (19  ,  BtnEvents.DOWN  , PRESS_TYPE.CASCADE) ,
             (26  ,  BtnEvents.UP    , PRESS_TYPE.CASCADE) ,
             ]
@@ -75,24 +74,24 @@ def init_params():
     # ========================================================================================================================= #
     #                          Type of param      Name              InitVal    Min      Max    StepSizes                        #
     # ========================================================================================================================= #
-    params.register_new_param(ptys.NumericParam , "sdr_cf"        ,  133.2e6 , 30e6 , 1766e6 , [1e4,1e5,1e6,1e7,1e8,1e9,1e2,1e3] )
+    params.register_new_param(ptys.NumericParam , "sdr_cf"        ,  88.3e6 , 30e6 , 1766e6 , [1e4,1e5,1e6,1e7,1e8,1e9,1e2,1e3] )
     params.register_new_param(ptys.NumericParam , "sdr_fs"        ,  0.25e6 ,    0 ,    2e9 ,  None                             )
     params.register_new_param(ptys.NumericParam , "sdr_dig_bw"    ,   150e3 ,  1e3 ,  250e3 , [10e3,100e3,1e3]                  )
-    params.register_new_param(ptys.FuncParam    , "sdr_dec_fx"    ,  DMgr() ,                                                   )
-    params.register_new_param(ptys.NumericParam , "sdr_squelch"   ,     -20 ,  -40 ,      2 , [10, 0.1, 1]                      )
+    params.register_new_param(ptys.ObjParam     , "sdr_decoder"   ,  DMgr() ,                                                   )
+    params.register_new_param(ptys.NumericParam , "sdr_squelch"   ,     -20 ,  -40 ,      2 , [1, 0.1, 0.01, 10]                          )
     params.register_new_param(ptys.NumericParam , "sdr_chunk_sz"  ,   2**14 ,    1 ,   None , [1]                               )
     params.register_new_param(ptys.NumericParam , "spkr_volume"   ,     0.5 ,    0 ,    100 , [10,1]                            )
     params.register_new_param(ptys.NumericParam , "spkr_chunk_sz" ,   2**12 ,    1 ,   None , [1]                               )
     params.register_new_param(ptys.NumericParam , "spkr_fs"       ,   44100 ,    1 ,   None , [1]                               )
 
+    num, denom = params["sdr_decoder"].create_filter(params["sdr_dig_bw"], params["sdr_fs"])
+    params.register_new_param(ptys.ObjParam, "sdr_lp_num", num)
+    params.register_new_param(ptys.ObjParam, "sdr_lp_denom", denom)
+
+
     return params
 
-from scipy.signal import butter
-def setup_lowpass(params):
-    fmLpNum, fmLpDenom = butter(5, (params["sdr_dig_bw"] / 2) / (0.5 * params["sdr_fs"]), btype='low', analog=False)
 
-    params.register_new_param(ptys.ObjParam, "sdr_lp_num", fmLpNum)
-    params.register_new_param(ptys.ObjParam, "sdr_lp_denom", fmLpDenom)
 
 import time
 def setup_sdr(params):
@@ -119,7 +118,7 @@ def pipeline_worker(toSpeakers, toHW, params):
     pipeline = AsyncPipeline(
         [ProvideRawRF(params["sdr"], params["sdr_chunk_sz"]),
          CalcDecibels(),
-         DemodulateRF(params["sdr_dec_fx"]),
+         DemodulateRF(params["sdr_decoder"]),
          Filter(params["sdr_lp_num"], params["sdr_lp_denom"]),
          Downsample(params["sdr_fs"], params["spkr_fs"]),
          ApplySquelch(params["sdr_squelch"]),

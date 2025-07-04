@@ -121,6 +121,7 @@ class HWMenuManager():
             "settingsMenu"    : self.__settingsMenu,
             "screen"          : self.__currScreen,
             "FTUNE_cursorPos" : 5,
+            "SQUELCH_cursorPos" : 1,
             "cf"              : params["sdr_cf"].get(),
             "bw"              : params["sdr_dig_bw"].get(),
             "squelch"         : params["sdr_squelch"].get(),
@@ -171,17 +172,19 @@ class HWMenuManager():
         
     def handle_squelch(self, evt):
         if evt == hw_enums.BtnEvents.UP:
-            self.__params["sdr_squelch"].cycle_step_size(ptys.NumericParam.StepDir.UP)
-            self.__latestMeta["squelch_step"] = self.__params["sdr_squelch"].get_step_size()
+            self.__params["sdr_squelch"].step(ptys.NumericParam.StepDir.UP)
+            self.__latestMeta["squelch"] = self.__params["sdr_squelch"].get()
         elif evt == hw_enums.BtnEvents.DOWN:
-            self.__params["sdr_squelch"].cycle_step_size(ptys.NumericParam.StepDir.DOWN)
-            self.__latestMeta["squelch_step"] = self.__params["sdr_squelch"].get_step_size()
-        elif evt == hw_enums.BtnEvents.LEFT:
             self.__params["sdr_squelch"].step(ptys.NumericParam.StepDir.DOWN)
             self.__latestMeta["squelch"] = self.__params["sdr_squelch"].get()
         elif evt == hw_enums.BtnEvents.RIGHT:
-            self.__params["sdr_squelch"].step(ptys.NumericParam.StepDir.UP)
-            self.__latestMeta["squelch"] = self.__params["sdr_squelch"].get()
+            self.__params["sdr_squelch"].cycle_step_size(ptys.NumericParam.StepDir.UP)
+            self.__latestMeta["squelch_step"] = self.__params["sdr_squelch"].get_step_size()
+            self.__latestMeta["SQUELCH_cursorPos"] = (self.__latestMeta["SQUELCH_cursorPos"] + 1) % 4
+        elif evt == hw_enums.BtnEvents.LEFT:
+            self.__params["sdr_squelch"].cycle_step_size(ptys.NumericParam.StepDir.DOWN)
+            self.__latestMeta["squelch_step"] = self.__params["sdr_squelch"].get_step_size()
+            self.__latestMeta["SQUELCH_cursorPos"] = (self.__latestMeta["SQUELCH_cursorPos"] - 1) % 4
         elif evt == hw_enums.BtnEvents.M1:
             self.__currScreen = Screens.SETTINGS
             self.__latestMeta["screen"] = Screens.SETTINGS
@@ -190,6 +193,7 @@ class HWMenuManager():
             self.__latestMeta["screen"] = Screens.FREQTUNE
         # Send updated state of system params over to screen drawer
         self.__screenDrawInbox.put(self.__latestMeta)
+        print(self.__params["sdr_squelch"])
     
     def handle_settings(self, evt):
         if evt == hw_enums.BtnEvents.UP:

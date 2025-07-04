@@ -101,7 +101,7 @@ class EnumParam(BaseParam):
     def __ne__(self, other):
         return not (self.get() == other)
 
-class ObjParam(BaseParam):
+class ObjParam(FuncParam):
     def __getattr__(self, name):
         """
         Forward any attribute access thats not in this class (get,set,etc)
