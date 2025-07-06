@@ -101,13 +101,13 @@ class HWMenuManager():
         self.__screenDrawInbox = inbox
         self.__params          = params
         self.__btnQueue        = mp.Queue()
-        self.__currScreen      = Screens.SQUELCH
+        self.__currScreen      = Screens.FREQTUNE
         
         self.__settingsMenu = Menu("Settings")
         self.__settingsMenu.register_option(MenuOption("Tuning", Screens.FREQTUNE))
         self.__settingsMenu.register_option(MenuOption("Squelch", Screens.SQUELCH))
-        self.__settingsMenu.register_option(MenuOption("Op3", printaction))
-        self.__settingsMenu.register_option(MenuOption("Op4", printaction))
+        self.__settingsMenu.register_option(MenuOption("Volume", Screens.VOLUME))
+        self.__settingsMenu.register_option(MenuOption("Demodulation", Screens.DEMOD))
         self.__settingsMenu.register_option(MenuOption("Op5", printaction))
         self.__settingsMenu.register_option(MenuOption("Op6", printaction))
 
@@ -195,6 +195,28 @@ class HWMenuManager():
         self.__screenDrawInbox.put(self.__latestMeta)
         print(self.__params["sdr_squelch"])
     
+    def handle_demod(self, evt):
+        if evt == hw_enums.BtnEvents.UP:
+            pass
+        elif evt == hw_enums.BtnEvents.DOWN:
+            pass
+        elif evt == hw_enums.BtnEvents.RIGHT:
+            # switch
+            pass
+        elif evt == hw_enums.BtnEvents.LEFT:
+            # switch
+            pass 
+        elif evt == hw_enums.BtnEvents.M1:
+            self.__currScreen = Screens.SETTINGS
+            self.__latestMeta["screen"] = Screens.SETTINGS
+        elif evt == hw_enums.BtnEvents.M2:
+            self.__currScreen = Screens.FREQTUNE
+            self.__latestMeta["screen"] = Screens.FREQTUNE
+        # Send updated state of system params over to screen drawer
+        self.__screenDrawInbox.put(self.__latestMeta)
+        print(self.__params["sdr_squelch"])
+
+
     def handle_settings(self, evt):
         if evt == hw_enums.BtnEvents.UP:
             self.__settingsMenu.scroll_up()

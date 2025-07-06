@@ -7,6 +7,7 @@ class Screens(Enum):
     SQUELCH  = auto()
     FREQTUNE = auto()
     VOLUME   = auto()
+    DEMOD    = auto()
 
 import time
 

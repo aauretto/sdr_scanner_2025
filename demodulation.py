@@ -52,6 +52,12 @@ class DemodulationManager():
     def get_demod_scheme_name(self):
         return str(self.__currDecoding).split(".")[1]
 
+    def cycle_decoding_scheme(self):
+        schemes = self.__fxs.keys()
+        next = (schemes.index(self.__currDecoding) + 1) % len(schemes)
+        self.set_demod_scheme(schemes[next])
+
+
     def __call__(self, *args, **kwargs):
         return self.__fxs[self.__currDecoding](*args, **kwargs)
     

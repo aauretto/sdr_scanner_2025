@@ -92,6 +92,7 @@ class RechunkArray(BaseProducer, BaseConsumer):
         self.partialLen = 0
         self.isRunning = True
 
+    # Weird produce / consume usage here. TODO Change to use AbstractWorker for clarity
     async def produce(self):
         while self.isRunning:
             await self.consume()
@@ -133,8 +134,8 @@ class AdjustVolume(AbstractWindow):
         self.__vol = target
 
     def inspect(self, pdp):
-        if (maxVal := pdp.data.max()) != 0:
-            pdp.data = pdp.data * self.__vol / maxVal / 100
+        if not pdp.meta["squelched"]:
+            pdp.data = pdp.data * self.__vol / 100 * pdp.data.max()
 
 class CalcDecibels(AbstractWindow):
     def inspect(self, pdp):
