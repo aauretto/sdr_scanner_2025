@@ -6,7 +6,7 @@ All stages are assuming that data looks like a PipelineDatPackage object
 """
 
 import asyncio
-from async_pipeline import AsyncPipeline, BasePipelineStage, AbstractWorker, AbstractWindow, Endpoint, FxApplyWindow, FxApplyWorker
+from pc_model import pc_runner, BaseConsumer, BaseProducer, FxApplyWindow, FxApplyWorker, AbstractWorker, AbstractWindow
 import numpy as np
 
 class PipelineDataPackage():
@@ -26,8 +26,18 @@ class DemodulateRF(AbstractWindow):
         self.dmgr = dmgr
 
     def inspect(self, pdp):
-        pdp.data = self.dmgr(pdp.data)
+        if not pdp.meta["squelched"]:
+            print("AMMING")
+            pdp.data = self.dmgr(pdp.data, **pdp.meta)
+
         pdp.meta["demod"] = self.dmgr.get().get_demod_scheme_name() # So much for being agnostic of whats in here
+
+class Endpoint(BaseConsumer):
+    """
+    Black hole that eats objects from previous node's queue. Prevents last queue from growing w/o bound
+    """
+    async def consume(self):
+        await self.source.get_result()
 
 from scipy.signal import resample
 class Downsample(AbstractWorker):
@@ -60,13 +70,13 @@ class Filter(AbstractWorker):
         return pdp
         
 import time
-class ProvideRawRF(BasePipelineStage):
+class ProvideRawRF(BaseProducer):
     def __init__(self, sdr, spb):
         super().__init__()
         self.sdr = sdr
         self.sampleStream = self.sdr.stream(num_samples_or_bytes=spb, format='samples')
 
-    async def execute(self):
+    async def produce(self):
         async for chunk in self.sampleStream:
             pdp = PipelineDataPackage()
             pdp.data = chunk
@@ -74,7 +84,7 @@ class ProvideRawRF(BasePipelineStage):
             await self.outbox.put(pdp)
         await self.outbox.put(None)
 
-class RechunkArray(BasePipelineStage):
+class RechunkArray(BaseProducer, BaseConsumer):
     def __init__(self, tarBlockSize):
         super().__init__()
         self.tarBlockSize = tarBlockSize
@@ -82,12 +92,12 @@ class RechunkArray(BasePipelineStage):
         self.partialLen = 0
         self.isRunning = True
 
-    async def execute(self):
+    async def produce(self):
         while self.isRunning:
-            await self.consume_blocksz_samples()
+            await self.consume()
 
-    async def consume_blocksz_samples(self):
-        pdp = await self.prevStage.get_result()
+    async def consume(self):
+        pdp = await self.source.get_result()
         data = pdp.data
         dataPos = 0
         if data is None:
@@ -138,3 +148,6 @@ class ApplySquelch(AbstractWindow):
     def inspect(self, pdp):
         if self.__squelch >= pdp.meta["dB"]:
             pdp.data = np.zeros(shape=pdp.data.shape)
+            pdp.meta["squelched"] = True
+        else:
+            pdp.meta["squelched"] = False

@@ -7,7 +7,6 @@ from speaker_manager import SpeakerManager
 from rtlsdr import RtlSdr
 from queue import Queue
 from threading import Thread
-from async_pipeline import AsyncPipeline
 import param_types as ptys
 
 def main():
@@ -109,29 +108,32 @@ def setup_sdr(params):
 
 def pipeline_worker(toSpeakers, toHW, params):
     # Create loop for this thread
-    from system_pipeline_stages import ProvideRawRF, Filter, Downsample, RechunkArray, ReshapeArray, Endpoint, DemodulateRF, CalcDecibels, ApplySquelch, AdjustVolume
-    from async_pipeline         import FxApplyWindow
+    from pc_model import AsyncHandler, Graph as PCgraph
+    from system_pipeline_stages import ProvideRawRF, Filter, Downsample, RechunkArray, ReshapeArray, Endpoint, DemodulateRF, CalcDecibels, ApplySquelch, AdjustVolume, Endpoint
+    from pc_model               import FxApplyWindow
     loop = asyncio.new_event_loop()
     asyncio.set_event_loop(loop)
     
-    # Set up and launch pipeline
-    pipeline = AsyncPipeline(
-        [ProvideRawRF(params["sdr"], params["sdr_chunk_sz"]),
-         CalcDecibels(),
-         DemodulateRF(params["sdr_decoder"]),
-         Filter(params["sdr_lp_num"], params["sdr_lp_denom"]),
-         Downsample(params["sdr_fs"], params["spkr_fs"]),
-         ApplySquelch(params["sdr_squelch"]),
-         RechunkArray(params["spkr_chunk_sz"]),
-         AdjustVolume(params["spkr_volume"]),
+    # Set up and launch decoding / playback pipeline
 
-         # Data is audio ready for speakers
-         ReshapeArray((-1,1)),
-         FxApplyWindow(lambda d : toSpeakers.put(d.data)),
-         FxApplyWindow(lambda d : toHW.put(d.meta)),
-         Endpoint()])
+    m = PCgraph()
+    m.add_linear_chain([ProvideRawRF(params["sdr"], params["sdr_chunk_sz"]),
+                        CalcDecibels(),
+                        ApplySquelch(params["sdr_squelch"]),
+                        DemodulateRF(params["sdr_decoder"]),
+                        Filter(params["sdr_lp_num"], params["sdr_lp_denom"]),
+                        Downsample(params["sdr_fs"], params["spkr_fs"]),
+                        RechunkArray(params["spkr_chunk_sz"]),
+                        AdjustVolume(params["spkr_volume"]),
+               
+                        # Data is now audio ready for speakers
+                        ReshapeArray((-1,1)),
+                        FxApplyWindow(lambda d : toSpeakers.put(d.data)),
+                        FxApplyWindow(lambda d : toHW.put(d.meta)),
+                        Endpoint()])
     
-    pipeline.run_pipeline()
+    pipeline = AsyncHandler(m)
+    pipeline.run()
 
     loop.close()
 

@@ -5,16 +5,8 @@ import numpy as np
 from enum import Enum, auto
 from scipy.signal import butter
 import param_types as ptys
+from collections import deque
 
-def DECODE_FM(sig):
-    """
-    According to the internet this approximates differentiating phase...
-    """
-    diff = np.angle(sig[1:] * np.conj(sig[:-1]))
-    return diff / np.pi
-
-def DECODE_AM(sig):
-    return np.abs(sig)
 
 class DemodSchemes(Enum):
     FM = auto()
@@ -28,12 +20,30 @@ class DemodulationManager():
     a function.
     """
     def __init__(self):
-        self.__currDecoding = DemodSchemes.FM
+        self.__currDecoding = DemodSchemes.AM
+        self.__normBuffer = deque(maxlen=8)
+        self.AMnormFactor = 1
         self.__fxs = {
-            DemodSchemes.FM : DECODE_FM,
-            DemodSchemes.AM : DECODE_AM,
+            DemodSchemes.FM : self.DECODE_FM,
+            DemodSchemes.AM : self.DECODE_AM,
         }
     
+    def DECODE_FM(self, sig, **meta):
+        """
+        According to the internet this approximates differentiating phase...
+        """
+        diff = np.angle(sig[1:] * np.conj(sig[:-1]))
+        return diff / np.pi
+
+    def DECODE_AM(self, sig, **meta):
+        rawDemod = np.abs(sig)
+        
+        # Normalize
+        self.__normBuffer.append(meta.get("dB", 0))
+
+        return rawDemod / np.mean(list(self.__normBuffer)) * self.AMnormFactor
+    
+
     def set_demod_scheme(self, key):
         if key not in self.__fxs:
             print(f"Invalid Decoding Scheme {key}. Please use any of {self.__fxs.keys()}")
