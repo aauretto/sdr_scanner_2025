@@ -109,7 +109,7 @@ def draw_demod_window(draw, meta):
     draw.line((0, 20, 127, 20), fill="white")
     draw.text((5,5), "Set Demodulaiton", font=_FONT_MANAGER.load_font(10), fill="white")
 
-    draw.text((50, 28), f"< {meta['demod_name']} >", font=_FONT_MANAGER.load_font(16), fill="white")
+    draw.text((28, 34), f"< {meta['demod_name']} >", font=_FONT_MANAGER.load_font(16), fill="white")
 
 
 # =============================================================================

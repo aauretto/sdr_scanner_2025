@@ -101,7 +101,7 @@ class HWMenuManager():
         self.__screenDrawInbox = inbox
         self.__params          = params
         self.__btnQueue        = mp.Queue()
-        self.__currScreen      = Screens.FREQTUNE
+        self.__currScreen      = Screens.DEMOD
         
         self.__settingsMenu = Menu("Settings")
         self.__settingsMenu.register_option(MenuOption("Tuning", Screens.FREQTUNE))
