@@ -114,20 +114,22 @@ class HWMenuManager():
         self.__click_fx_map = {
             Screens.FREQTUNE : self.menu_click_tuning,
             Screens.SQUELCH  : self.menu_click_squelch,
+            Screens.DEMOD    : self.menu_click_demod,
         }
 
         # Fields that we synch between this process and the process that draws to the screen
         self.__latestMeta = {
-            "settingsMenu"    : self.__settingsMenu,
-            "screen"          : self.__currScreen,
-            "FTUNE_cursorPos" : 5,
+            "settingsMenu"      : self.__settingsMenu,
+            "screen"            : self.__currScreen,
+            "FTUNE_cursorPos"   : 5,
             "SQUELCH_cursorPos" : 1,
-            "cf"              : params["sdr_cf"].get(),
-            "bw"              : params["sdr_dig_bw"].get(),
-            "squelch"         : params["sdr_squelch"].get(),
-            "squelch_step"    : params["sdr_squelch"].get_step_size(),
-            "vol"             : params["spkr_volume"].get(),
-            "timestamp"       : 0,
+            "cf"                : params["sdr_cf"].get(),
+            "bw"                : params["sdr_dig_bw"].get(),
+            "squelch"           : params["sdr_squelch"].get(),
+            "vol"               : params["spkr_volume"].get(),
+            "timestamp"         : 0,
+            "start_time"        : params["start_time"].get(),
+            "demod_name"        : params["sdr_decoder"].get_demod_scheme_name(),
         }
 
     
@@ -138,6 +140,9 @@ class HWMenuManager():
     def menu_click_squelch(self):
         self.__currScreen = Screens.SQUELCH
         self.__latestMeta["screen"] = Screens.SQUELCH
+    def menu_click_demod(self):
+        self.__currScreen = Screens.DEMOD
+        self.__latestMeta["screen"] = Screens.DEMOD
 
     def handle_event(self, evt):
         if self.__currScreen == Screens.FREQTUNE:
@@ -146,6 +151,8 @@ class HWMenuManager():
             self.handle_settings(evt)
         elif self.__currScreen == Screens.SQUELCH:
             self.handle_squelch(evt)
+        elif self.__currScreen == Screens.DEMOD:
+            self.handle_demod(evt)
 
     def handle_freq_tune(self, evt):
         if evt == hw_enums.BtnEvents.UP:
@@ -193,19 +200,18 @@ class HWMenuManager():
             self.__latestMeta["screen"] = Screens.FREQTUNE
         # Send updated state of system params over to screen drawer
         self.__screenDrawInbox.put(self.__latestMeta)
-        print(self.__params["sdr_squelch"])
-    
+
     def handle_demod(self, evt):
         if evt == hw_enums.BtnEvents.UP:
             pass
         elif evt == hw_enums.BtnEvents.DOWN:
             pass
         elif evt == hw_enums.BtnEvents.RIGHT:
-            # switch
-            pass
+            self.__params["sdr_decoder"].cycle_decoding_scheme(step=1) 
+            self.__latestMeta["demod_name"] = self.__params["sdr_decoder"].get_demod_scheme_name() 
         elif evt == hw_enums.BtnEvents.LEFT:
-            # switch
-            pass 
+            self.__params["sdr_decoder"].cycle_decoding_scheme(step=-1) 
+            self.__latestMeta["demod_name"] = self.__params["sdr_decoder"].get_demod_scheme_name() 
         elif evt == hw_enums.BtnEvents.M1:
             self.__currScreen = Screens.SETTINGS
             self.__latestMeta["screen"] = Screens.SETTINGS
@@ -214,7 +220,6 @@ class HWMenuManager():
             self.__latestMeta["screen"] = Screens.FREQTUNE
         # Send updated state of system params over to screen drawer
         self.__screenDrawInbox.put(self.__latestMeta)
-        print(self.__params["sdr_squelch"])
 
 
     def handle_settings(self, evt):

@@ -27,10 +27,9 @@ class DemodulateRF(AbstractWindow):
 
     def inspect(self, pdp):
         if not pdp.meta["squelched"]:
-            print("AMMING")
             pdp.data = self.dmgr(pdp.data, **pdp.meta)
 
-        pdp.meta["demod"] = self.dmgr.get().get_demod_scheme_name() # So much for being agnostic of whats in here
+        pdp.meta["demod_name"] = self.dmgr.get().get_demod_scheme_name() # So much for being agnostic of whats in here
 
 class Endpoint(BaseConsumer):
     """

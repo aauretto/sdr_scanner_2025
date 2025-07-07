@@ -6,7 +6,7 @@ import RPi.GPIO as GPIO
 import time
 from hw_interface.font_manager import FontManager
 from hw_interface.oled_menu import Menu, MenuOption
-from hw_interface.oled_screens import Screens, draw_tuning_window, draw_squelch_window
+from hw_interface.oled_screens import Screens, draw_tuning_window, draw_squelch_window, draw_demod_window
 
 GPIO.setwarnings(False)
 
@@ -29,6 +29,8 @@ class ScreenDrawer():
                 meta["settingsMenu"].draw(draw)
             elif meta["screen"] == Screens.SQUELCH:
                 draw_squelch_window(draw, meta)
+            elif meta["screen"] == Screens.DEMOD:
+                draw_demod_window(draw, meta)
 
             time.sleep(self.__SECS_PER_FRAME)
 

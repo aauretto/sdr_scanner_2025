@@ -3,6 +3,8 @@
 import system_params as sps
 import asyncio
 
+import time
+
 from speaker_manager import SpeakerManager
 from rtlsdr import RtlSdr
 from queue import Queue
@@ -70,18 +72,19 @@ def init_params():
     params = sps.SysParams()
 
 
-    # ========================================================================================================================= #
-    #                          Type of param      Name              InitVal    Min      Max    StepSizes                        #
-    # ========================================================================================================================= #
-    params.register_new_param(ptys.NumericParam , "sdr_cf"        ,  88.3e6 , 30e6 , 1766e6 , [1e4,1e5,1e6,1e7,1e8,1e9,1e2,1e3] )
-    params.register_new_param(ptys.NumericParam , "sdr_fs"        ,  0.25e6 ,    0 ,    2e9 ,  None                             )
-    params.register_new_param(ptys.NumericParam , "sdr_dig_bw"    ,   150e3 ,  1e3 ,  250e3 , [10e3,100e3,1e3]                  )
-    params.register_new_param(ptys.ObjParam     , "sdr_decoder"   ,  DMgr() ,                                                   )
-    params.register_new_param(ptys.NumericParam , "sdr_squelch"   ,     -20 ,  -40 ,      2 , [1, 0.1, 0.01, 10]                )
-    params.register_new_param(ptys.NumericParam , "sdr_chunk_sz"  ,   2**14 ,    1 ,   None , [1]                               )
-    params.register_new_param(ptys.NumericParam , "spkr_volume"   ,     0.5 ,    0 ,    100 , [10,1]                            )
-    params.register_new_param(ptys.NumericParam , "spkr_chunk_sz" ,   2**12 ,    1 ,   None , [1]                               )
-    params.register_new_param(ptys.NumericParam , "spkr_fs"       ,   44100 ,    1 ,   None , [1]                               )
+    # =========================================================================================================================== #
+    #                          Type of param      Name                InitVal    Min      Max    StepSizes                        #
+    # =========================================================================================================================== #
+    params.register_new_param(ptys.NumericParam , "sdr_cf"        ,    88.3e6 , 30e6 , 1766e6 , [1e4,1e5,1e6,1e7,1e8,1e9,1e2,1e3] )
+    params.register_new_param(ptys.NumericParam , "sdr_fs"        ,    0.25e6 ,    0 ,    2e9 ,  None                             )
+    params.register_new_param(ptys.NumericParam , "sdr_dig_bw"    ,     150e3 ,  1e3 ,  250e3 , [10e3,100e3,1e3]                  )
+    params.register_new_param(ptys.ObjParam     , "sdr_decoder"   ,    DMgr() ,                                                   )
+    params.register_new_param(ptys.NumericParam , "sdr_squelch"   ,       -20 ,  -40 ,      2 , [1, 0.1, 0.01, 10]                )
+    params.register_new_param(ptys.NumericParam , "sdr_chunk_sz"  ,     2**14 ,    1 ,   None , [1]                               )
+    params.register_new_param(ptys.NumericParam , "spkr_volume"   ,       0.5 ,    0 ,    100 , [10,1]                            )
+    params.register_new_param(ptys.NumericParam , "spkr_chunk_sz" ,     2**12 ,    1 ,   None , [1]                               )
+    params.register_new_param(ptys.NumericParam , "spkr_fs"       ,     44100 ,    1 ,   None , [1]                               )
+    params.register_new_param(ptys.ObjParam     , "start_time"    , time.time(),                                                  )
 
     num, denom = params["sdr_decoder"].create_filter(params["sdr_dig_bw"], params["sdr_fs"])
     params.register_new_param(ptys.ObjParam, "sdr_lp_num", num)
@@ -90,9 +93,6 @@ def init_params():
 
     return params
 
-
-
-import time
 def setup_sdr(params):
     sdr = RtlSdr()
 

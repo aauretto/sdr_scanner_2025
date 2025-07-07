@@ -37,12 +37,15 @@ def draw_tuning_window(draw, meta):
     render_right_justified_text(draw, (113, 15), "dB", font=_FONT_MANAGER.load_font(8))
     draw.line((78, 0, 78, 26), fill="white")
 
-    is_dst = time.localtime().tm_isdst
-    draw.text((9, 5), time.strftime("%H:%M", time.localtime()), font=_FONT_MANAGER.load_font(8), fill="white")
-    draw.text((15, 15), time.tzname[is_dst], font=_FONT_MANAGER.load_font(8), fill="white")
+    elapsed = int(time.time() - meta["start_time"])
+    hh, rem = divmod(elapsed, 3600)
+    mm, _   = divmod(rem, 60)
+
+    draw.text((11,15), "Time", font=_FONT_MANAGER.load_font(8), fill="white")
+    draw.text((9, 5), f"{hh:02d}:{mm:02d}", font=_FONT_MANAGER.load_font(8), fill="white")
     draw.line((50, 0, 50, 26), fill="white")
 
-    draw.text((55, 9), "FM", font=_FONT_MANAGER.load_font(10), fill="white")
+    draw.text((55, 9), meta["demod_name"], font=_FONT_MANAGER.load_font(10), fill="white")
 
 # TODO: HOIST INTO A CONSTS FILE
 SQUELCH_MIN = -40
@@ -98,6 +101,15 @@ def draw_squelch_window(draw, meta):
                   ], 
                   fill='white')
 
+
+def draw_demod_window(draw, meta):
+    """
+    Draws the demodulation setting screen.
+    """
+    draw.line((0, 20, 127, 20), fill="white")
+    draw.text((5,5), "Set Demodulaiton", font=_FONT_MANAGER.load_font(10), fill="white")
+
+    draw.text((50, 28), f"< {meta['demod_name']} >", font=_FONT_MANAGER.load_font(16), fill="white")
 
 
 # =============================================================================

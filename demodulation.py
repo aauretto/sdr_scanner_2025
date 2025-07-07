@@ -48,13 +48,14 @@ class DemodulationManager():
         if key not in self.__fxs:
             print(f"Invalid Decoding Scheme {key}. Please use any of {self.__fxs.keys()}")
         self.__currDecoding = key
+        print(f"New demod is now: {self.__currDecoding}")
 
     def get_demod_scheme_name(self):
         return str(self.__currDecoding).split(".")[1]
 
-    def cycle_decoding_scheme(self):
-        schemes = self.__fxs.keys()
-        next = (schemes.index(self.__currDecoding) + 1) % len(schemes)
+    def cycle_decoding_scheme(self, step = 1):
+        schemes = list(self.__fxs.keys())
+        next = (schemes.index(self.__currDecoding) + step) % len(schemes)
         self.set_demod_scheme(schemes[next])
 
 
