@@ -81,7 +81,7 @@ def init_params():
     params.register_new_param(ptys.ObjParam     , "sdr_decoder"   ,    DMgr() ,                                                   )
     params.register_new_param(ptys.NumericParam , "sdr_squelch"   ,       -20 ,  -40 ,      2 , [1, 0.1, 0.01, 10]                )
     params.register_new_param(ptys.NumericParam , "sdr_chunk_sz"  ,     2**14 ,    1 ,   None , [1]                               )
-    params.register_new_param(ptys.NumericParam , "spkr_volume"   ,       0.5 ,    0 ,    100 , [10,1]                            )
+    params.register_new_param(ptys.NumericParam , "spkr_volume"   ,       100 ,    0 ,    100 , [10, 1]                               )
     params.register_new_param(ptys.NumericParam , "spkr_chunk_sz" ,     2**12 ,    1 ,   None , [1]                               )
     params.register_new_param(ptys.NumericParam , "spkr_fs"       ,     44100 ,    1 ,   None , [1]                               )
     params.register_new_param(ptys.ObjParam     , "start_time"    , time.time(),                                                  )

@@ -100,6 +100,19 @@ def draw_squelch_window(draw, meta):
                   (4 + chevXpos, 2 + chevYpos)
                   ], 
                   fill='white')
+    
+def draw_vol_window(draw, meta):
+    """
+    Draws the VOL setting screen.
+    TODO: I use a lot of magic numbers here
+    """
+    draw.line((0, 20, 127, 20), fill="white")
+    draw.text((5,5), "Set volume", font=_FONT_MANAGER.load_font(10), fill="white")
+
+    vol = meta['vol']
+    
+    cursorPos = meta["VOL_cursorPos"] + 1
+    draw_text_with_inverted_char(draw, (33, 35), f"{vol:03d}%", cursorPos, _FONT_MANAGER.load_font(16))
 
 
 def draw_demod_window(draw, meta):

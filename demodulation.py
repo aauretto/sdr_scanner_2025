@@ -20,7 +20,7 @@ class DemodulationManager():
     a function.
     """
     def __init__(self):
-        self.__currDecoding = DemodSchemes.AM
+        self.__currDecoding = DemodSchemes.FM
         self.__normBuffer = deque(maxlen=8)
         self.AMnormFactor = 1
         self.__fxs = {

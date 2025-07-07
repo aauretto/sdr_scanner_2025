@@ -101,7 +101,7 @@ class HWMenuManager():
         self.__screenDrawInbox = inbox
         self.__params          = params
         self.__btnQueue        = mp.Queue()
-        self.__currScreen      = Screens.DEMOD
+        self.__currScreen      = Screens.VOLUME
         
         self.__settingsMenu = Menu("Settings")
         self.__settingsMenu.register_option(MenuOption("Tuning", Screens.FREQTUNE))
@@ -111,18 +111,13 @@ class HWMenuManager():
         self.__settingsMenu.register_option(MenuOption("Op5", printaction))
         self.__settingsMenu.register_option(MenuOption("Op6", printaction))
 
-        self.__click_fx_map = {
-            Screens.FREQTUNE : self.menu_click_tuning,
-            Screens.SQUELCH  : self.menu_click_squelch,
-            Screens.DEMOD    : self.menu_click_demod,
-        }
-
         # Fields that we synch between this process and the process that draws to the screen
         self.__latestMeta = {
             "settingsMenu"      : self.__settingsMenu,
             "screen"            : self.__currScreen,
             "FTUNE_cursorPos"   : 5,
             "SQUELCH_cursorPos" : 1,
+            "VOL_cursorPos"     : 0,
             "cf"                : params["sdr_cf"].get(),
             "bw"                : params["sdr_dig_bw"].get(),
             "squelch"           : params["sdr_squelch"].get(),
@@ -133,24 +128,22 @@ class HWMenuManager():
         }
 
     
-    # Actions for settings menu:
-    def menu_click_tuning(self):
-        self.__currScreen = Screens.FREQTUNE
-        self.__latestMeta["screen"] = Screens.FREQTUNE
-    def menu_click_squelch(self):
-        self.__currScreen = Screens.SQUELCH
-        self.__latestMeta["screen"] = Screens.SQUELCH
-    def menu_click_demod(self):
-        self.__currScreen = Screens.DEMOD
-        self.__latestMeta["screen"] = Screens.DEMOD
+    def set_current_screen(self, screen):
+        self.__currScreen = screen
+        self.__latestMeta["screen"] = screen
 
     def handle_event(self, evt):
+        """
+        Send received event to proper handler based on screen
+        """
         if self.__currScreen == Screens.FREQTUNE:
             self.handle_freq_tune(evt)
         elif self.__currScreen == Screens.SETTINGS:
             self.handle_settings(evt)
         elif self.__currScreen == Screens.SQUELCH:
             self.handle_squelch(evt)
+        elif self.__currScreen == Screens.VOLUME:
+            self.handle_vol(evt)
         elif self.__currScreen == Screens.DEMOD:
             self.handle_demod(evt)
 
@@ -186,12 +179,32 @@ class HWMenuManager():
             self.__latestMeta["squelch"] = self.__params["sdr_squelch"].get()
         elif evt == hw_enums.BtnEvents.RIGHT:
             self.__params["sdr_squelch"].cycle_step_size(ptys.NumericParam.StepDir.UP)
-            self.__latestMeta["squelch_step"] = self.__params["sdr_squelch"].get_step_size()
             self.__latestMeta["SQUELCH_cursorPos"] = (self.__latestMeta["SQUELCH_cursorPos"] + 1) % 4
         elif evt == hw_enums.BtnEvents.LEFT:
             self.__params["sdr_squelch"].cycle_step_size(ptys.NumericParam.StepDir.DOWN)
-            self.__latestMeta["squelch_step"] = self.__params["sdr_squelch"].get_step_size()
             self.__latestMeta["SQUELCH_cursorPos"] = (self.__latestMeta["SQUELCH_cursorPos"] - 1) % 4
+        elif evt == hw_enums.BtnEvents.M1:
+            self.__currScreen = Screens.SETTINGS
+            self.__latestMeta["screen"] = Screens.SETTINGS
+        elif evt == hw_enums.BtnEvents.M2:
+            self.__currScreen = Screens.FREQTUNE
+            self.__latestMeta["screen"] = Screens.FREQTUNE
+        # Send updated state of system params over to screen drawer
+        self.__screenDrawInbox.put(self.__latestMeta)
+
+    def handle_vol(self, evt):
+        if evt == hw_enums.BtnEvents.UP:
+            self.__params["spkr_volume"].step(ptys.NumericParam.StepDir.UP)
+            self.__latestMeta["vol"] = self.__params["spkr_volume"].get()
+        elif evt == hw_enums.BtnEvents.DOWN:
+            self.__params["spkr_volume"].step(ptys.NumericParam.StepDir.DOWN)
+            self.__latestMeta["vol"] = self.__params["spkr_volume"].get()
+        elif evt == hw_enums.BtnEvents.RIGHT:
+            self.__params["spkr_volume"].cycle_step_size(ptys.NumericParam.StepDir.UP)
+            self.__latestMeta["VOL_cursorPos"] = (self.__latestMeta["VOL_cursorPos"] + 1) % 2
+        elif evt == hw_enums.BtnEvents.LEFT:
+            self.__params["spkr_volume"].cycle_step_size(ptys.NumericParam.StepDir.DOWN)
+            self.__latestMeta["VOL_cursorPos"] = (self.__latestMeta["VOL_cursorPos"] - 1) % 2
         elif evt == hw_enums.BtnEvents.M1:
             self.__currScreen = Screens.SETTINGS
             self.__latestMeta["screen"] = Screens.SETTINGS
@@ -228,7 +241,7 @@ class HWMenuManager():
         elif evt == hw_enums.BtnEvents.DOWN:
             self.__settingsMenu.scroll_down()
         elif evt == hw_enums.BtnEvents.RIGHT:
-            self.__click_fx_map[self.__settingsMenu.select()]()
+            self.set_current_screen(self.__settingsMenu.select())
         elif evt == hw_enums.BtnEvents.M2:
             self.__currScreen = Screens.FREQTUNE
             self.__latestMeta["screen"] = Screens.FREQTUNE
