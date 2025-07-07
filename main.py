@@ -77,7 +77,7 @@ def init_params():
     # =========================================================================================================================== #
     params.register_new_param(ptys.NumericParam , "sdr_cf"        ,    88.3e6 , 30e6 , 1766e6 , [1e4,1e5,1e6,1e7,1e8,1e9,1e2,1e3] )
     params.register_new_param(ptys.NumericParam , "sdr_fs"        ,    0.25e6 ,    0 ,    2e9 ,  None                             )
-    params.register_new_param(ptys.NumericParam , "sdr_dig_bw"    ,     150e3 ,  1e3 ,  250e3 , [10e3,100e3,1e3]                  )
+    params.register_new_param(ptys.NumericParam , "sdr_dig_bw"    ,     150e3 ,  1e3 ,  250e3 , [10e3,100e3,1e1,1e2,1e3]                  )
     params.register_new_param(ptys.ObjParam     , "sdr_decoder"   ,    DMgr() ,                                                   )
     params.register_new_param(ptys.NumericParam , "sdr_squelch"   ,       -20 ,  -40 ,      2 , [1, 0.1, 0.01, 10]                )
     params.register_new_param(ptys.NumericParam , "sdr_chunk_sz"  ,     2**14 ,    1 ,   None , [1]                               )

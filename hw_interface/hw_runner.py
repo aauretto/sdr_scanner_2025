@@ -101,14 +101,14 @@ class HWMenuManager():
         self.__screenDrawInbox = inbox
         self.__params          = params
         self.__btnQueue        = mp.Queue()
-        self.__currScreen      = Screens.VOLUME
+        self.__currScreen      = Screens.FREQTUNE
         
         self.__settingsMenu = Menu("Settings")
         self.__settingsMenu.register_option(MenuOption("Tuning", Screens.FREQTUNE))
         self.__settingsMenu.register_option(MenuOption("Squelch", Screens.SQUELCH))
         self.__settingsMenu.register_option(MenuOption("Volume", Screens.VOLUME))
         self.__settingsMenu.register_option(MenuOption("Demodulation", Screens.DEMOD))
-        self.__settingsMenu.register_option(MenuOption("Op5", printaction))
+        self.__settingsMenu.register_option(MenuOption("Bandwitdh", Screens.BANDWIDTH))
         self.__settingsMenu.register_option(MenuOption("Op6", printaction))
 
         # Fields that we synch between this process and the process that draws to the screen
@@ -118,6 +118,8 @@ class HWMenuManager():
             "FTUNE_cursorPos"   : 5,
             "SQUELCH_cursorPos" : 1,
             "VOL_cursorPos"     : 0,
+            "SQUELCH_cursorPos" : 1,
+            "BW_cursorPos"      : 1,
             "cf"                : params["sdr_cf"].get(),
             "bw"                : params["sdr_dig_bw"].get(),
             "squelch"           : params["sdr_squelch"].get(),
@@ -182,6 +184,36 @@ class HWMenuManager():
             self.__latestMeta["SQUELCH_cursorPos"] = (self.__latestMeta["SQUELCH_cursorPos"] + 1) % 4
         elif evt == hw_enums.BtnEvents.LEFT:
             self.__params["sdr_squelch"].cycle_step_size(ptys.NumericParam.StepDir.DOWN)
+            self.__latestMeta["SQUELCH_cursorPos"] = (self.__latestMeta["SQUELCH_cursorPos"] - 1) % 4
+        elif evt == hw_enums.BtnEvents.M1:
+            self.__currScreen = Screens.SETTINGS
+            self.__latestMeta["screen"] = Screens.SETTINGS
+        elif evt == hw_enums.BtnEvents.M2:
+            self.__currScreen = Screens.FREQTUNE
+            self.__latestMeta["screen"] = Screens.FREQTUNE
+        # Send updated state of system params over to screen drawer
+        self.__screenDrawInbox.put(self.__latestMeta)
+
+    def handle_bw(self, evt):
+        if evt == hw_enums.BtnEvents.UP:
+            self.__params["sdr_dig_bw"].step(ptys.NumericParam.StepDir.UP)
+            self.__latestMeta["bw"] = self.__params["sdr_dig_bw"].get()
+            # Update filter params to new BW
+            n,d = self.__params["sdr_decoder"].create_filter(self.__latestMeta["bw"], self.__params["sdr_fs"])
+            self.__params["sdr_lp_num"].set(n)
+            self.__params["sdr_lp_denom"].set(d)
+        elif evt == hw_enums.BtnEvents.DOWN:
+            self.__params["sdr_dig_bw"].step(ptys.NumericParam.StepDir.DOWN)
+            self.__latestMeta["bw"] = self.__params["sdr_dig_bw"].get()
+            # Update filter params to new BW
+            n,d = self.__params["sdr_decoder"].create_filter(self.__latestMeta["bw"], self.__params["sdr_fs"])
+            self.__params["sdr_lp_num"].set(n)
+            self.__params["sdr_lp_denom"].set(d)
+        elif evt == hw_enums.BtnEvents.RIGHT:
+            self.__params["sdr_dig_bw"].cycle_step_size(ptys.NumericParam.StepDir.UP)
+            self.__latestMeta["SQUELCH_cursorPos"] = (self.__latestMeta["SQUELCH_cursorPos"] + 1) % 4
+        elif evt == hw_enums.BtnEvents.LEFT:
+            self.__params["sdr_dig_bw"].cycle_step_size(ptys.NumericParam.StepDir.DOWN)
             self.__latestMeta["SQUELCH_cursorPos"] = (self.__latestMeta["SQUELCH_cursorPos"] - 1) % 4
         elif evt == hw_enums.BtnEvents.M1:
             self.__currScreen = Screens.SETTINGS

@@ -1,20 +1,18 @@
 from hw_interface import hw_enums
 from hw_interface.font_manager import FontManager
 from enum import Enum, auto
-
-class Screens(Enum):
-    SETTINGS = auto()
-    SQUELCH  = auto()
-    FREQTUNE = auto()
-    VOLUME   = auto()
-    DEMOD    = auto()
-
 import time
 
+class Screens(Enum):
+    SETTINGS  = auto()
+    SQUELCH   = auto()
+    FREQTUNE  = auto()
+    VOLUME    = auto()
+    DEMOD     = auto()
+    BANDWIDTH = auto()
 
-
+# Singleton holding fonts that we can use when drawing things
 _FONT_MANAGER = FontManager()
-
 
 # =============================================================================
 # Screens to display
@@ -94,6 +92,48 @@ def draw_squelch_window(draw, meta):
     chevXpos = SQUELCH_BAR_PAD + PX_PER_DB * (squelch - SQUELCH_MIN) - 3
     # chevXpos = SQUELCH_BAR_PAD + squelchMeterLen - 3
     chevYpos = SQUELCH_BAR_VPOS + 3
+    draw.polygon([
+                  (2 + chevXpos, 6 + chevYpos), 
+                  (6 + chevXpos, 6 + chevYpos), 
+                  (4 + chevXpos, 2 + chevYpos)
+                  ], 
+                  fill='white')
+    
+# TODO: HOIST INTO A CONSTS FILE
+BW_MIN = 1e3
+BW_MAX = 250e3
+
+# Squelch screen consts
+BW_BAR_PAD  = 8
+BW_BAR_LEN  = 128 - 2 * BW_BAR_PAD
+BW_BAR_VPOS = 32
+PX_PER_DB   = BW_BAR_LEN / (BW_MAX - BW_MIN)
+
+BW_BAR_SERIF_HEIGHT = 7
+BW_BAR_METER_HEIGHT = 3
+def draw_bw_window(draw, meta):
+    """
+    Draws the bw setting screen.
+    TODO: I use a lot of magic numbers here
+    """
+    draw.line((0, 20, 127, 20), fill="white")
+    draw.text((5,5), "Set Bandwidth", font=_FONT_MANAGER.load_font(10), fill="white")
+
+    bw = meta['bw']
+
+    # Draw bar indicating range for bw
+    draw.line((BW_BAR_PAD, BW_BAR_VPOS, BW_BAR_PAD + BW_BAR_LEN, BW_BAR_VPOS), fill="white")        
+    draw.line((BW_BAR_PAD, BW_BAR_VPOS - BW_BAR_SERIF_HEIGHT // 2, BW_BAR_PAD, BW_BAR_VPOS + BW_BAR_SERIF_HEIGHT // 2), fill="white")        
+    draw.line((BW_BAR_PAD + BW_BAR_LEN, BW_BAR_VPOS - BW_BAR_SERIF_HEIGHT // 2, BW_BAR_PAD + BW_BAR_LEN, BW_BAR_VPOS + BW_BAR_SERIF_HEIGHT // 2), fill="white")        
+
+    draw.rectangle((78, 45, 128, 64), outline="white")
+
+    cursorPos = meta["BW_cursorPos"] + (meta["BW_cursorPos"] > 3)
+    draw_text_with_inverted_char(draw, (61, 51), f"{bw:06.2f} kHz", cursorPos, _FONT_MANAGER.load_font(8))
+
+    # Draw current squelch indicator
+    chevXpos = BW_BAR_PAD + PX_PER_DB * (bw - BW_MIN) - 3
+    chevYpos = BW_BAR_VPOS + 3
     draw.polygon([
                   (2 + chevXpos, 6 + chevYpos), 
                   (6 + chevXpos, 6 + chevYpos), 
