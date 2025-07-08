@@ -14,7 +14,7 @@ from hw_interface.button_handler import ButtonHandler
 from hw_interface.screen_handler import ScreenDrawer
 import multiprocessing as mp
 import multiprocessing.synchronize
-from threading import Thread
+import threading
 import RPi.GPIO as GPIO
 import param_types as ptys
 from hw_interface import hw_enums
@@ -25,7 +25,7 @@ def printaction():
     print("Hello!")    
 
 class HWScreenInterface():
-    def __init__(self, inbox, buttonQ, meta, btnPairs, stopSig):
+    def __init__(self, inbox, buttonQ, meta, btnPairs):
         """
         TODO explain this stuff
         Manager that runs a process that handles drawing screen and listens to button presses
@@ -33,7 +33,6 @@ class HWScreenInterface():
         self.__screenDrawInbox = inbox
         self.__btnQueue        = buttonQ
         self.__latestMeta      = meta
-        self.__stopSig         = stopSig
         self.__btnEvtPairs     = btnPairs
 
     def __meta_rxer(self):
@@ -42,67 +41,74 @@ class HWScreenInterface():
         Note: This function runs in another process and allows us to synchronize
               the state of latestMeta across those processes.
         """
-        while not self.__stopSig.is_set():
-            meta = self.__screenDrawInbox.get()
-            if meta:
-                for (k, v) in meta.items():
-                    self.__latestMeta[k] = v
+        while (meta := self.__screenDrawInbox.get()) is not None:
+            for (k, v) in meta.items():
+                self.__latestMeta[k] = v
 
     def __screen_runner(self, screen: ScreenDrawer):
         screen.run(self.__latestMeta)
 
-    def __button_runner(self, buttons: ButtonHandler, cfg:list):
+    def __button_runner(self, buttons: ButtonHandler, cfg:list, stopSig: threading.Event):
         for (p, e, t) in cfg:
             buttons.register_button(p, e, t)
-            print(f"[DEBUG] > Registered pin {p} with event {e} and press type {t}")
+            print(f"[Buttons] > Registered pin {p} with event {e} and press type {t}")
 
-        print("[DEBUG] > All Buttons registered!")
+        print("[Buttons] > All Buttons registered!")
 
-        buttons.stop_on_signal(self.__stopSig)
+        buttons.stop_on_signal(stopSig)
 
     def __worker_process(self):
+        
+        threadStopSig = threading.Event()
         buttons = ButtonHandler(self.__btnQueue)
         screen  = ScreenDrawer()
-        
+
+        # Overwrite signal handler from main process so we can clean up properly when we are told to
+        import signal  
+        def child_signal_handler(sig, frame):
+            print(f"Child proc got signal {sig}")
+            threadStopSig.set()
+            screen.stop()
+        signal.signal(signal.SIGTERM, child_signal_handler) # for SIGTERM (supervisor uses this)
+        signal.signal(signal.SIGINT,  child_signal_handler) # for Ctrl+C
+
         # Meta updater (on hw process handler side) 
-        mThread = Thread(target=self.__meta_rxer, args=(), daemon=True, name="thread_meta_updater")
+        mThread = threading.Thread(target=self.__meta_rxer, args=(), name="thread_meta_updater")
 
         # Set up buttons on another thread
-        bThread = Thread(target=self.__button_runner, args=(buttons, self.__btnEvtPairs), daemon=True, name="thread_button_handler")
+        bThread = threading.Thread(target=self.__button_runner, args=(buttons, self.__btnEvtPairs, threadStopSig), name="thread_button_handler")
         
         # Set up screen handler on annother thread too
-        sThread = Thread(target=self.__screen_runner, args=(screen,), daemon=True, name="thread_screen-handler")
+        sThread = threading.Thread(target=self.__screen_runner, args=(screen,), name="thread_screen-handler")
 
         mThread.start()
         bThread.start()
         sThread.start()
 
-        self.__stopSig.wait()
-            
         # Shut down gracefully
-        screen.stop()
-        self.__screenDrawInbox.put(None)
+        mThread.join()
         sThread.join()
         bThread.join()
-        mThread.join()
         GPIO.cleanup()
 
     def start(self):
-
-        self.__proc = mp.Process(target=self.__worker_process, args=(), daemon=True)
+        self.__proc = mp.Process(target=self.__worker_process, args=())
         self.__proc.start()
-
+    
+    def stop(self):
+        self.__screenDrawInbox.put(None)
+        self.__proc.join()
 
 
 class HWMenuManager():
     def __init__(self, inbox, params):
-        self.__proc            = None
+        self.__screenHandler            = None
         self.__btnEvtPairs     = []
         self.__screenDrawInbox = inbox
         self.__params          = params
         self.__btnQueue        = mp.Queue()
-        self.__currScreen      = Screens.FREQTUNE
-        
+        self.__currScreen      = Screens.VOLUME
+
         self.__settingsMenu = Menu("Settings")
         self.__settingsMenu.register_option(MenuOption("Tuning", Screens.FREQTUNE))
         self.__settingsMenu.register_option(MenuOption("Squelch", Screens.SQUELCH))
@@ -130,6 +136,30 @@ class HWMenuManager():
         }
 
     
+    def register_btns(self, pairs):
+        """
+        Iterable of pairs of pin vals and events to send when those vals are pressed
+        """
+        self.__btnEvtPairs = pairs
+
+    def run_until_stop(self):
+        """
+        Runs until HWMenuManager.stop() is called (Or None is put onto btnQueue somehow but that shouldnt happen)
+        """
+        self.__screenHandler = HWScreenInterface(self.__screenDrawInbox, self.__btnQueue, self.__latestMeta | {"dB" : 0}, self.__btnEvtPairs)
+        self.__screenHandler.start()
+
+        while (evt := self.__btnQueue.get()) is not None:
+            print(f"Got event: {evt}")
+            self.handle_event(evt)
+
+    def stop(self):
+        self.__btnQueue.put(None)
+        self.__screenHandler.stop()
+
+    def get_inbox(self):
+        return self.__screenDrawInbox
+
     def set_current_screen(self, screen):
         self.__currScreen = screen
         self.__latestMeta["screen"] = screen
@@ -280,24 +310,3 @@ class HWMenuManager():
         # Send updated state of system params over to screen drawer
         self.__screenDrawInbox.put(self.__latestMeta)
         
-
-    def register_btns(self, pairs):
-        """
-        Iterable of pairs of pin vals and events to send when those vals are pressed
-        """
-        self.__btnEvtPairs = pairs
-
-    def run_until_sig(self, stopSig : multiprocessing.synchronize.Event):
-        HWScreenInterface(self.__screenDrawInbox, self.__btnQueue, self.__latestMeta | {"dB" : 0}, self.__btnEvtPairs, stopSig).start()
-
-        while not stopSig.is_set():
-            evt = self.__btnQueue.get()
-            print(f"Got event: {evt}")
-            self.handle_event(evt)
-
-    def stop(self):
-        print("[HWManager] > Stopping")
-        self.__proc.join()
-
-    def get_inbox(self):
-        return self.__screenDrawInbox

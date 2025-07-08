@@ -70,18 +70,23 @@ class Filter(AbstractWorker):
         
 import time
 class ProvideRawRF(BaseProducer):
-    def __init__(self, sdr, spb):
+    def __init__(self, sdr, spb, stopSig):
         super().__init__()
         self.sdr = sdr
         self.sampleStream = self.sdr.stream(num_samples_or_bytes=spb, format='samples')
+        self.stopSig = stopSig
 
     async def produce(self):
         async for chunk in self.sampleStream:
+            if self.stopSig.is_set():
+                break
             pdp = PipelineDataPackage()
             pdp.data = chunk
             pdp.meta["timestamp"] = time.time()
             await self.outbox.put(pdp)
-        await self.outbox.put(None)
+        await self.sdr.stop()
+        self.sdr.close()
+        await self.stop()
 
 class RechunkArray(BaseProducer, BaseConsumer):
     def __init__(self, tarBlockSize):
@@ -98,12 +103,12 @@ class RechunkArray(BaseProducer, BaseConsumer):
 
     async def consume(self):
         pdp = await self.source.get_result()
-        data = pdp.data
-        dataPos = 0
-        if data is None:
+        if pdp is None:
             await self.outbox.put(None)
             self.isRunning = False
             return
+        data = pdp.data
+        dataPos = 0
             
         while dataPos < len(data): # More data available from last time we got data
 

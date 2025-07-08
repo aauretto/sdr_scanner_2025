@@ -159,7 +159,6 @@ class ButtonHandler():
 
     def stop(self):
         self.__active = False
-        print("[Button Manager] > Stopping")
         self.__evtQ.put(None) # Unstick queue if needed
 
     def stop_on_signal(self, stopSig):

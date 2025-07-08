@@ -1,15 +1,44 @@
-
-
-import system_params as sps
 import asyncio
-
+import threading
 import time
-
-from speaker_manager import SpeakerManager
 from rtlsdr import RtlSdr
 from queue import Queue
-from threading import Thread
+
+import system_params as sps
+from speaker_manager import SpeakerManager
 import param_types as ptys
+
+
+import signal
+import sys
+PIPELINE_UP     = threading.Event()
+SHUTDOWN_CALLED = threading.Event()
+STOP_PIPELINE   = asyncio.Event()
+PIPELINE_LOOP   = None
+
+def signal_handler(sig, frame):
+    print(f"Received signal {sig}, shutting down")
+    if SHUTDOWN_CALLED.is_set():
+        print(f"Received another shutdown signal ({sig}), exiting...")
+        return
+    
+    SHUTDOWN_CALLED.set()
+    PIPELINE_UP.wait() # Make sure theres a pipeline to kill before we kill it
+    if not PIPELINE_LOOP.is_closed():
+        try:
+            PIPELINE_LOOP.call_soon_threadsafe(STOP_PIPELINE.set)
+        except Exception as e:
+            if "Event loop is closed" in str(e):
+                print("Event loop closed and tried to eval a future or something")
+                return
+        print("Set stop flag and closed loop")
+    else:
+        print("Loop already closed.")
+
+# Register the signal handlers
+signal.signal(signal.SIGTERM, signal_handler) # for SIGTERM (supervisor uses this)
+signal.signal(signal.SIGINT,  signal_handler) # for Ctrl+C
+
 
 def main():
     """
@@ -18,25 +47,27 @@ def main():
     # initialize stuff
     params = init_params()
     setup_sdr(params)
-    hwManager, stopSig = start_gpio_hw(params)
+    hwManager = start_gpio_hw(params)
 
     # Connect decoding pipeline to speakers
     bridgeToSpeakers = Queue()
     bridgeToHW       = hwManager.get_inbox()
-    pipelineThread   = Thread(target=pipeline_worker, args = (bridgeToSpeakers, bridgeToHW, params), daemon=True)
+    pipelineThread   = threading.Thread(target=pipeline_worker, args = (bridgeToSpeakers, bridgeToHW, params), daemon=True)
 
     sm = SpeakerManager(blockSize=params["spkr_chunk_sz"], sampRate=params["spkr_fs"])
     sm.set_source(bridgeToSpeakers)
     sm.init_stream()
     sm.start()
 
-    pipelineThread.start() # Will go forever unless error encountered.
+    pipelineThread.start() # Will go forever unless error or signal encountered.
 
     # Clean up
     pipelineThread.join()
-    stopSig.set()
+    print("=======================================Done Pipeline")
     hwManager.stop()
+    print("=======================================Done HW")
     sm.stop()
+    print("=======================================Done Speakers")
 
 from hw_interface import BtnEvents, PRESS_TYPE, HWMenuManager
 import multiprocessing as mp
@@ -53,16 +84,15 @@ def start_gpio_hw(params):
             (26  ,  BtnEvents.UP    , PRESS_TYPE.CASCADE) ,
             ]
 
-    bridgeToHW = mp.Queue() # Gets meta from pipeline over to screen
-    hwManager  = HWMenuManager(bridgeToHW, params)
-    stopSig    = mp.Event()
+    bridgeToHW  = mp.Queue() # Gets meta from pipeline over to screen
+    hwManager   = HWMenuManager(bridgeToHW, params)
 
     def hw_worker():
         hwManager.register_btns(btnCfg)
-        hwManager.run_until_sig(stopSig)
-    Thread(target=hw_worker, args=(), daemon=True).start()
+        hwManager.run_until_stop()
+    threading.Thread(target=hw_worker, args=(), daemon=True).start()
     
-    return hwManager, stopSig
+    return hwManager
     
 def init_params():
     """
@@ -111,13 +141,16 @@ def pipeline_worker(toSpeakers, toHW, params):
     from pc_model import AsyncHandler, Graph as PCgraph
     from system_pipeline_stages import ProvideRawRF, Filter, Downsample, RechunkArray, ReshapeArray, Endpoint, DemodulateRF, CalcDecibels, ApplySquelch, AdjustVolume, Endpoint
     from pc_model               import FxApplyWindow
-    loop = asyncio.new_event_loop()
-    asyncio.set_event_loop(loop)
+    global PIPELINE_LOOP
+    global PIPELINE_UP
+    global STOP_PIPELINE
+    PIPELINE_LOOP = asyncio.new_event_loop()
+    
+    asyncio.set_event_loop(PIPELINE_LOOP)
     
     # Set up and launch decoding / playback pipeline
-
     m = PCgraph()
-    m.add_linear_chain([ProvideRawRF(params["sdr"], params["sdr_chunk_sz"]),
+    m.add_linear_chain([ProvideRawRF(params["sdr"], params["sdr_chunk_sz"], STOP_PIPELINE),
                         CalcDecibels(),
                         ApplySquelch(params["sdr_squelch"]),
                         DemodulateRF(params["sdr_decoder"]),
@@ -133,9 +166,10 @@ def pipeline_worker(toSpeakers, toHW, params):
                         Endpoint()])
     
     pipeline = AsyncHandler(m)
+    PIPELINE_UP.set()
     pipeline.run()
 
-    loop.close()
+    PIPELINE_LOOP.close()
 
 if __name__ == "__main__":
     main()

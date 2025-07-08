@@ -44,5 +44,5 @@ class AsyncHandler():
         # obtain coroutines
         coros = [n.data.get_coro() for n in self.mGraph]
 
-        print("About to run")
+        print("[PC Model] > Running a model")
         loop.run_until_complete(asyncio.gather(*coros))
