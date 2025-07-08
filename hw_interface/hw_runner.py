@@ -107,7 +107,7 @@ class HWMenuManager():
         self.__screenDrawInbox = inbox
         self.__params          = params
         self.__btnQueue        = mp.Queue()
-        self.__currScreen      = Screens.VOLUME
+        self.__currScreen      = Screens.BANDWIDTH
 
         self.__settingsMenu = Menu("Settings")
         self.__settingsMenu.register_option(MenuOption("Tuning", Screens.FREQTUNE))
@@ -115,7 +115,6 @@ class HWMenuManager():
         self.__settingsMenu.register_option(MenuOption("Volume", Screens.VOLUME))
         self.__settingsMenu.register_option(MenuOption("Demodulation", Screens.DEMOD))
         self.__settingsMenu.register_option(MenuOption("Bandwitdh", Screens.BANDWIDTH))
-        self.__settingsMenu.register_option(MenuOption("Op6", printaction))
 
         # Fields that we synch between this process and the process that draws to the screen
         self.__latestMeta = {
@@ -124,7 +123,6 @@ class HWMenuManager():
             "FTUNE_cursorPos"   : 5,
             "SQUELCH_cursorPos" : 1,
             "VOL_cursorPos"     : 0,
-            "SQUELCH_cursorPos" : 1,
             "BW_cursorPos"      : 1,
             "cf"                : params["sdr_cf"].get(),
             "bw"                : params["sdr_dig_bw"].get(),
@@ -146,6 +144,7 @@ class HWMenuManager():
         """
         Runs until HWMenuManager.stop() is called (Or None is put onto btnQueue somehow but that shouldnt happen)
         """
+        # Need to append dB starting value here since its displayed in two screens
         self.__screenHandler = HWScreenInterface(self.__screenDrawInbox, self.__btnQueue, self.__latestMeta | {"dB" : 0}, self.__btnEvtPairs)
         self.__screenHandler.start()
 
@@ -178,6 +177,8 @@ class HWMenuManager():
             self.handle_vol(evt)
         elif self.__currScreen == Screens.DEMOD:
             self.handle_demod(evt)
+        elif self.__currScreen == Screens.BANDWIDTH:
+            self.handle_bw(evt)
 
     def handle_freq_tune(self, evt):
         if evt == hw_enums.BtnEvents.UP:
@@ -241,10 +242,10 @@ class HWMenuManager():
             self.__params["sdr_lp_denom"].set(d)
         elif evt == hw_enums.BtnEvents.RIGHT:
             self.__params["sdr_dig_bw"].cycle_step_size(ptys.NumericParam.StepDir.UP)
-            self.__latestMeta["SQUELCH_cursorPos"] = (self.__latestMeta["SQUELCH_cursorPos"] + 1) % 4
+            self.__latestMeta["BW_cursorPos"] = (self.__latestMeta["BW_cursorPos"] + 1) % 5
         elif evt == hw_enums.BtnEvents.LEFT:
             self.__params["sdr_dig_bw"].cycle_step_size(ptys.NumericParam.StepDir.DOWN)
-            self.__latestMeta["SQUELCH_cursorPos"] = (self.__latestMeta["SQUELCH_cursorPos"] - 1) % 4
+            self.__latestMeta["BW_cursorPos"] = (self.__latestMeta["BW_cursorPos"] - 1) % 5
         elif evt == hw_enums.BtnEvents.M1:
             self.__currScreen = Screens.SETTINGS
             self.__latestMeta["screen"] = Screens.SETTINGS

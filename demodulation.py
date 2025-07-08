@@ -20,7 +20,7 @@ class DemodulationManager():
     a function.
     """
     def __init__(self):
-        self.__currDecoding = DemodSchemes.FM
+        self.__currDecoding = DemodSchemes.AM
         self.__normBuffer = deque(maxlen=8)
         self.AMnormFactor = 1
         self.__fxs = {
@@ -39,7 +39,7 @@ class DemodulationManager():
         rawDemod = np.abs(sig)
         
         # Normalize
-        self.__normBuffer.append(meta.get("dB", 0))
+        self.__normBuffer.append(rawDemod.max())
 
         return rawDemod / np.mean(list(self.__normBuffer)) * self.AMnormFactor
     
@@ -63,5 +63,10 @@ class DemodulationManager():
         return self.__fxs[self.__currDecoding](*args, **kwargs)
     
     def create_filter(self, bw, fs):
+        """
+        Squirreled this function away here since its tangentially related to demodulating the input
+        rf.
+        """
+        print(f"Making new filter for {bw = } and {fs = }")
         fmLpNum, fmLpDenom = butter(5, (bw / 2) / (0.5 * fs), btype='low', analog=False)
         return (fmLpNum, fmLpDenom)

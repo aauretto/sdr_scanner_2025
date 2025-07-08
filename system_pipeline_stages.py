@@ -63,7 +63,7 @@ class Filter(AbstractWorker):
         super().__init__()
         self.b = b
         self.a = a
-    
+
     def process(self, pdp):
         pdp.data = lfilter(self.b, self.a, pdp.data)
         return pdp

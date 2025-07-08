@@ -53,7 +53,7 @@ SQUELCH_MAX = 2
 SQUELCH_BAR_PAD  = 8
 SQUELCH_BAR_LEN  = 128 - 2 * SQUELCH_BAR_PAD
 SQUELCH_BAR_VPOS = 32
-PX_PER_DB   = SQUELCH_BAR_LEN / (SQUELCH_MAX - SQUELCH_MIN)
+SQ_PX_PER_DB   = SQUELCH_BAR_LEN / (SQUELCH_MAX - SQUELCH_MIN)
 
 SQUELCH_BAR_SERIF_HEIGHT = 7
 SQUELCH_BAR_METER_HEIGHT = 3
@@ -67,7 +67,7 @@ def draw_squelch_window(draw, meta):
 
     # Localize Sig Strength and Squelch
     squelch = meta['squelch']
-    sqlSign = "-" if squelch < 0 else ""
+    sqlSign = "-" if squelch < 0 else " "
     dB = meta['dB']
     dBSign = "-" if dB < 0 else ""
 
@@ -76,7 +76,7 @@ def draw_squelch_window(draw, meta):
     draw.line((SQUELCH_BAR_PAD, SQUELCH_BAR_VPOS - SQUELCH_BAR_SERIF_HEIGHT // 2, SQUELCH_BAR_PAD, SQUELCH_BAR_VPOS + SQUELCH_BAR_SERIF_HEIGHT // 2), fill="white")        
     draw.line((SQUELCH_BAR_PAD + SQUELCH_BAR_LEN, SQUELCH_BAR_VPOS - SQUELCH_BAR_SERIF_HEIGHT // 2, SQUELCH_BAR_PAD + SQUELCH_BAR_LEN, SQUELCH_BAR_VPOS + SQUELCH_BAR_SERIF_HEIGHT // 2), fill="white")        
 
-    squelchMeterLen = PX_PER_DB * (dB - SQUELCH_MIN)
+    squelchMeterLen = SQ_PX_PER_DB * (dB - SQUELCH_MIN)
     draw.rectangle((SQUELCH_BAR_PAD, SQUELCH_BAR_VPOS - SQUELCH_BAR_METER_HEIGHT // 2, SQUELCH_BAR_PAD + squelchMeterLen, SQUELCH_BAR_VPOS + SQUELCH_BAR_METER_HEIGHT // 2), fill = "white") 
     
     draw.rectangle((0, 45, 50, 64), outline="white")
@@ -89,7 +89,7 @@ def draw_squelch_window(draw, meta):
     draw_text_with_inverted_char(draw, (81, 51), f"{sqlSign}{abs(squelch):05.2f}", cursorPos, _FONT_MANAGER.load_font(8))
 
     # Draw current squelch indicator
-    chevXpos = SQUELCH_BAR_PAD + PX_PER_DB * (squelch - SQUELCH_MIN) - 3
+    chevXpos = SQUELCH_BAR_PAD + SQ_PX_PER_DB * (squelch - SQUELCH_MIN) - 3
     # chevXpos = SQUELCH_BAR_PAD + squelchMeterLen - 3
     chevYpos = SQUELCH_BAR_VPOS + 3
     draw.polygon([
@@ -101,13 +101,13 @@ def draw_squelch_window(draw, meta):
     
 # TODO: HOIST INTO A CONSTS FILE
 BW_MIN = 1e3
-BW_MAX = 250e3
+BW_MAX = 240e3
 
 # Squelch screen consts
 BW_BAR_PAD  = 8
 BW_BAR_LEN  = 128 - 2 * BW_BAR_PAD
 BW_BAR_VPOS = 32
-PX_PER_DB   = BW_BAR_LEN / (BW_MAX - BW_MIN)
+BW_PX_PER_DB   = BW_BAR_LEN / (BW_MAX - BW_MIN)
 
 BW_BAR_SERIF_HEIGHT = 7
 BW_BAR_METER_HEIGHT = 3
@@ -126,13 +126,13 @@ def draw_bw_window(draw, meta):
     draw.line((BW_BAR_PAD, BW_BAR_VPOS - BW_BAR_SERIF_HEIGHT // 2, BW_BAR_PAD, BW_BAR_VPOS + BW_BAR_SERIF_HEIGHT // 2), fill="white")        
     draw.line((BW_BAR_PAD + BW_BAR_LEN, BW_BAR_VPOS - BW_BAR_SERIF_HEIGHT // 2, BW_BAR_PAD + BW_BAR_LEN, BW_BAR_VPOS + BW_BAR_SERIF_HEIGHT // 2), fill="white")        
 
-    draw.rectangle((78, 45, 128, 64), outline="white")
+    draw.rectangle((28, 45, 100, 64), outline="white")
 
-    cursorPos = meta["BW_cursorPos"] + (meta["BW_cursorPos"] > 3)
-    draw_text_with_inverted_char(draw, (61, 51), f"{bw:06.2f} kHz", cursorPos, _FONT_MANAGER.load_font(8))
+    cursorPos = meta["BW_cursorPos"] + (meta["BW_cursorPos"] > 2)
+    draw_text_with_inverted_char(draw, (31, 51), f"{bw / 1e3:06.2f} kHz", cursorPos, _FONT_MANAGER.load_font(8))
 
     # Draw current squelch indicator
-    chevXpos = BW_BAR_PAD + PX_PER_DB * (bw - BW_MIN) - 3
+    chevXpos = BW_BAR_PAD + BW_PX_PER_DB * (bw - BW_MIN) - 3
     chevYpos = BW_BAR_VPOS + 3
     draw.polygon([
                   (2 + chevXpos, 6 + chevYpos), 
