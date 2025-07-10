@@ -3,7 +3,7 @@ Definitions for the demodulaiton functions to be used by the scanner.
 """
 import numpy as np
 from enum import Enum, auto
-from scipy.signal import butter
+from scipy.signal import butter, lfilter
 import param_types as ptys
 from collections import deque
 
@@ -23,6 +23,7 @@ class DemodulationManager():
         self.__currDecoding = DemodSchemes.AM
         self.__normBuffer = deque(maxlen=8)
         self.AMnormFactor = 1
+        # self.amLpNum, self.amLpDenom = butter(5, (20e3 / 2) / (0.5 * 0.25e6), btype='low', analog=False)
         self.__fxs = {
             DemodSchemes.FM : self.DECODE_FM,
             DemodSchemes.AM : self.DECODE_AM,
@@ -40,8 +41,9 @@ class DemodulationManager():
         
         # Normalize
         self.__normBuffer.append(rawDemod.max())
-
         return rawDemod / np.mean(list(self.__normBuffer)) * self.AMnormFactor
+        # Quiet any high-frequency products of demodulating
+        # return lfilter(self.amLpNum, self.amLpDenom, rawDemod)
     
 
     def set_demod_scheme(self, key):
@@ -68,5 +70,5 @@ class DemodulationManager():
         rf.
         """
         print(f"Making new filter for {bw = } and {fs = }")
-        fmLpNum, fmLpDenom = butter(5, (bw / 2) / (0.5 * fs), btype='low', analog=False)
-        return (fmLpNum, fmLpDenom)
+        num, denom = butter(5, (bw / 2) / (0.5 * fs), btype='low', analog=False)
+        return (num, denom)

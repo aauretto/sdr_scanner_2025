@@ -5,7 +5,4 @@ class BtnEvents(Enum):
     DOWN  = auto()
     LEFT  = auto()
     RIGHT = auto()
-    OK    = auto()
     M1    = auto()
-    M2    = auto()
-    M3    = auto()

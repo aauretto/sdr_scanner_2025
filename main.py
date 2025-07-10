@@ -74,10 +74,7 @@ import multiprocessing as mp
 def start_gpio_hw(params):
     btnCfg = [
         #    pin    Event             Press Type
-            (17  ,  BtnEvents.M3    , PRESS_TYPE.DOWN) ,
-            (27  ,  BtnEvents.M2    , PRESS_TYPE.DOWN) ,
             (22  ,  BtnEvents.M1    , PRESS_TYPE.DOWN) ,
-            (5   ,  BtnEvents.OK    , PRESS_TYPE.DOWN) ,
             (6   ,  BtnEvents.RIGHT , PRESS_TYPE.CASCADE) ,
             (13  ,  BtnEvents.LEFT  , PRESS_TYPE.CASCADE) ,
             (19  ,  BtnEvents.DOWN  , PRESS_TYPE.CASCADE) ,
@@ -107,7 +104,7 @@ def init_params():
     # =========================================================================================================================== #
     params.register_new_param(ptys.NumericParam , "sdr_cf"        ,   133.2e6 , 30e6 , 1766e6 , [1e4,1e5,1e6,1e7,1e8,1e9,1e2,1e3] )
     params.register_new_param(ptys.NumericParam , "sdr_fs"        ,    0.25e6 ,    0 ,    2e9 ,  None                             )
-    params.register_new_param(ptys.NumericParam , "sdr_dig_bw"    ,      20e3 ,  1e3 ,  240e3 , [1e4,1e3,1e2,1e1,1e5]             )
+    params.register_new_param(ptys.NumericParam , "sdr_dig_bw"    ,      10e3 ,  1e3 ,  240e3 , [1e4,1e3,1e2,1e1,1e5]             )
     params.register_new_param(ptys.ObjParam     , "sdr_decoder"   ,    DMgr() ,                                                   )
     params.register_new_param(ptys.NumericParam , "sdr_squelch"   ,       -20 ,  -40 ,      2 , [1, 0.1, 0.01, 10]                )
     params.register_new_param(ptys.NumericParam , "sdr_chunk_sz"  ,     2**14 ,    1 ,   None , [1]                               )
@@ -139,7 +136,7 @@ def setup_sdr(params):
 def pipeline_worker(toSpeakers, toHW, params):
     # Create loop for this thread
     from pc_model import AsyncHandler, Graph as PCgraph
-    from system_pipeline_stages import ProvideRawRF, Filter, Downsample, RechunkArray, ReshapeArray, Endpoint, DemodulateRF, CalcDecibels, ApplySquelch, AdjustVolume, Endpoint
+    from system_pipeline_stages import ProvideRawRF, Filter, Downsample, RechunkArray, ReshapeArray, Endpoint, DemodulateRF, CalcDecibels, ApplySquelch, AdjustVolume, Endpoint, DEBUG_SAVE_TO_FILE
     from pc_model               import FxApplyWindow
     global PIPELINE_LOOP
     global PIPELINE_UP
@@ -153,8 +150,10 @@ def pipeline_worker(toSpeakers, toHW, params):
     m.add_linear_chain([ProvideRawRF(params["sdr"], params["sdr_chunk_sz"], STOP_PIPELINE),
                         CalcDecibels(),
                         ApplySquelch(params["sdr_squelch"]),
-                        DemodulateRF(params["sdr_decoder"]),
+                        # DEBUG_SAVE_TO_FILE(f"./logs/pre_filt_{time.strftime('%d-%H-%M-%S')}.iq"),
                         Filter(params["sdr_lp_num"], params["sdr_lp_denom"]),
+                        # DEBUG_SAVE_TO_FILE(f"./logs/post_filt_{time.strftime('%d-%H-%M-%S')}.iq"),
+                        DemodulateRF(params["sdr_decoder"]),
                         Downsample(params["sdr_fs"], params["spkr_fs"]),
                         RechunkArray(params["spkr_chunk_sz"]),
                         AdjustVolume(params["spkr_volume"]),

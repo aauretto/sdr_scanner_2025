@@ -67,7 +67,34 @@ class Filter(AbstractWorker):
     def process(self, pdp):
         pdp.data = lfilter(self.b, self.a, pdp.data)
         return pdp
-        
+
+from threading import Thread
+from queue import Queue
+class DEBUG_SAVE_TO_FILE(AbstractWindow):
+    """
+    Saves the signal to a file
+    """
+
+    def fWrite_worker(self):
+        while True:
+            d = self.__q.get()
+            d.tofile(self.__fhandle)
+
+    def __init__(self, fname):
+        super().__init__(source=None)
+        self.__q = Queue()
+        self.__thread = Thread(target=self.fWrite_worker, args=())
+        self.__fhandle = open(fname, "ab")
+        self.__thread.start()
+        print("inited")
+
+    def inspect(self, data):
+        self.__q.put(data.data)
+ 
+    async def stop(self):
+        self.__fhandle.close()
+        await super().stop()
+
 import time
 class ProvideRawRF(BaseProducer):
     def __init__(self, sdr, spb, stopSig):
@@ -83,6 +110,7 @@ class ProvideRawRF(BaseProducer):
             pdp = PipelineDataPackage()
             pdp.data = chunk
             pdp.meta["timestamp"] = time.time()
+            print(pdp.data.dtype)
             await self.outbox.put(pdp)
         await self.sdr.stop()
         self.sdr.close()

@@ -107,7 +107,7 @@ class HWMenuManager():
         self.__screenDrawInbox = inbox
         self.__params          = params
         self.__btnQueue        = mp.Queue()
-        self.__currScreen      = Screens.BANDWIDTH
+        self.__currScreen      = Screens.FREQTUNE
 
         self.__settingsMenu = Menu("Settings")
         self.__settingsMenu.register_option(MenuOption("Tuning", Screens.FREQTUNE))
@@ -219,9 +219,6 @@ class HWMenuManager():
         elif evt == hw_enums.BtnEvents.M1:
             self.__currScreen = Screens.SETTINGS
             self.__latestMeta["screen"] = Screens.SETTINGS
-        elif evt == hw_enums.BtnEvents.M2:
-            self.__currScreen = Screens.FREQTUNE
-            self.__latestMeta["screen"] = Screens.FREQTUNE
         # Send updated state of system params over to screen drawer
         self.__screenDrawInbox.put(self.__latestMeta)
 
@@ -249,9 +246,6 @@ class HWMenuManager():
         elif evt == hw_enums.BtnEvents.M1:
             self.__currScreen = Screens.SETTINGS
             self.__latestMeta["screen"] = Screens.SETTINGS
-        elif evt == hw_enums.BtnEvents.M2:
-            self.__currScreen = Screens.FREQTUNE
-            self.__latestMeta["screen"] = Screens.FREQTUNE
         # Send updated state of system params over to screen drawer
         self.__screenDrawInbox.put(self.__latestMeta)
 
@@ -271,9 +265,6 @@ class HWMenuManager():
         elif evt == hw_enums.BtnEvents.M1:
             self.__currScreen = Screens.SETTINGS
             self.__latestMeta["screen"] = Screens.SETTINGS
-        elif evt == hw_enums.BtnEvents.M2:
-            self.__currScreen = Screens.FREQTUNE
-            self.__latestMeta["screen"] = Screens.FREQTUNE
         # Send updated state of system params over to screen drawer
         self.__screenDrawInbox.put(self.__latestMeta)
 
@@ -291,9 +282,6 @@ class HWMenuManager():
         elif evt == hw_enums.BtnEvents.M1:
             self.__currScreen = Screens.SETTINGS
             self.__latestMeta["screen"] = Screens.SETTINGS
-        elif evt == hw_enums.BtnEvents.M2:
-            self.__currScreen = Screens.FREQTUNE
-            self.__latestMeta["screen"] = Screens.FREQTUNE
         # Send updated state of system params over to screen drawer
         self.__screenDrawInbox.put(self.__latestMeta)
 
@@ -305,9 +293,6 @@ class HWMenuManager():
             self.__settingsMenu.scroll_down()
         elif evt == hw_enums.BtnEvents.RIGHT:
             self.set_current_screen(self.__settingsMenu.select())
-        elif evt == hw_enums.BtnEvents.M2:
-            self.__currScreen = Screens.FREQTUNE
-            self.__latestMeta["screen"] = Screens.FREQTUNE
         # Send updated state of system params over to screen drawer
         self.__screenDrawInbox.put(self.__latestMeta)
         
